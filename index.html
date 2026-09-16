@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Localiza Família</title>
+<meta name="description" content="Localize seus filhos e familiares em tempo real">
+<meta name="theme-color" content="#1A237E">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --azul: #1A237E;
+    --azul-claro: #3949AB;
+    --fundo: #0F1526;
+    --cartao: #1A2238;
+    --texto: #E8EAF6;
+    --verde: #2ECC71;
+    --vermelho: #E74C3C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: system-ui, -apple-system, sans-serif; background: var(--fundo); color: var(--texto); }
+  #mapa { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
+  .painel {
+    position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
+    width: min(94%, 420px); background: var(--cartao); border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); padding: 14px 16px;
+  }
+  .topo { top: 12px; display: flex; align-items: center; gap: 10px; }
+  .topo .titulo { font-weight: 700; font-size: 16px; }
+  .topo .subtitulo { font-size: 12px; opacity: .7; }
+  .status-ponto { width: 16px; height: 16px; border-radius: 50%; }
+  .status-ponto.ligado { background: var(--verde); box-shadow: 0 0 10px var(--verde); }
+  .status-ponto.desligado { background: var(--vermelho); }
+  .rodape { bottom: 12px; display: flex; gap: 10px; align-items: center; }
+  .rodape .info { flex: 1; font-size: 11px; opacity: .75; line-height: 1.4; }
+  button {
+    background: var(--azul-claro); color: #fff; border: 0; border-radius: 10px;
+    padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button.desativado { opacity: .4; }
+  .lista {
+    position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
+    bottom: 86px; width: min(94%, 420px); max-height: 40vh; overflow-y: auto;
+    background: var(--cartao); border-radius: 16px; padding: 10px 16px; display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  }
+  .lista.visivel { display: block; }
+  .item-familia { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .item-familia:last-child { border-bottom: 0; }
+  .item-familia .nome { flex: 1; font-weight: 600; font-size: 14px; }
+  .item-familia .distancia { font-size: 12px; color: var(--verde); }
+  .item-familia .tempo { font-size: 11px; opacity: .6; }
+  .marcador-eu .pin { background: var(--azul-claro); }
+  .pin {
+    width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    background: var(--vermelho); border: 3px solid #fff; display: flex; align-items: center; justify-content: center;
+  }
+  .pin span { transform: rotate(45deg); font-size: 13px; }
+  .campo-nome { display: none; }
+  .campo-nome input {
+    width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
+    color: var(--texto); border-radius: 10px; padding: 10px 12px; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div id="mapa"></div>
+
+<div class="painel topo">
+  <div class="status-ponto desligado" id="statusPonto"></div>
+  <div style="flex:1">
+    <div class="titulo">Localiza Família</div>
+    <div class="subtitulo" id="statusTexto">Aguardando permissão de localização...</div>
+  </div>
+  <button id="btnFamilia" class="desativado">Família</button>
+</div>
+
+<div class="lista" id="listaFamilia"></div>
+
+<div class="campo-nome" id="campoNome" style="bottom:86px">
+  <input id="inputNome" placeholder="Seu nome (ex: Mamãe)">
+</div>
+
+<div class="painel rodape">
+  <button id="btnCentralizar">Minha posição</button>
+  <div class="info" id="info">Localização: —<br>Precisão: —</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref as dbRef, serverTimestamp as fbServerTimestamp, set, update, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const FIREBASE_CONFIGURADO = true;
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD-M6KylszDVnhXZOKq1sq-yAGaxY58oGc",
+  authDomain: "localizafamilia.firebaseapp.com",
+  databaseURL: "https://localizafamilia-default-rtdb.firebaseio.com",
+  projectId: "localizafamilia"
+};
+
+const MINUTO = 60000;
+
+const mapa = L.map("mapa").setView([-15.78, -47.92], 13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap"
+}).addTo(mapa);
+
+const statusPonto = document.getElementById("statusPonto");
+const statusTexto = document.getElementById("statusTexto");
+const info = document.getElementById("info");
+const btnCentralizar = document.getElementById("btnCentralizar");
+const btnFamilia = document.getElementById("btnFamilia");
+const listaFamilia = document.getElementById("listaFamilia");
+const campoNome = document.getElementById("campoNome");
+const inputNome = document.getElementById("inputNome");
+
+let minhaPosicao = null;
+let meuMarcador = null;
+let meuCirculo = null;
+
+const iconeEu = L.divIcon({
+  className: "",
+  html: `<div class="marcador-eu"><div class="pin"><span>🏠</span></div></div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 30]
+});
+const iconeMembro = L.divIcon({
+  className: "",
+  html: `<div class="pin"><span>👤</span></div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 30]
+});
+
+const membros = new Map();
+
+function distanciaEmKm(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const la1 = a.lat * Math.PI / 180;
+  const la2 = b.lat * Math.PI / 180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function estaConfigurado() {
+  return FIREBASE_CONFIGURADO && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("SUA-");
+}
+
+function abrirFirebase() {
+  const app = initializeApp(FIREBASE_CONFIG);
+  return getDatabase(app);
+}
+
+btnFamilia.addEventListener("click", () => {
+  if (!estaConfigurado()) return;
+  listaFamilia.classList.toggle("visivel");
+});
+
+inputNome.addEventListener("change", () => {
+  const nome = inputNome.value.trim();
+  if (nome.length > 0) {
+    localStorage.setItem("nomeFamiliar", nome);
+    campoNome.style.display = "none";
+    registrarNoFirebase();
+  }
+});
+
+function atualizarInterface() {
+  if (minhaPosicao) {
+    info.innerHTML = `Localização: ${minhaPosicao.lat.toFixed(6)}, ${minhaPosicao.lng.toFixed(6)}<br>Precisão: ±${Math.round(minhaPosicao.acuracia)} m`;
+  }
+  if (estaConfigurado() && !localStorage.getItem("nomeFamiliar")) {
+    campoNome.style.display = "block";
+  }
+  if (estaConfigurado()) {
+    btnFamilia.classList.remove("desativado");
+    btnFamilia.textContent = `Família (${membros.size})`;
+  }
+}
+
+let enviandoFirebase = false;
+
+function registrarNoFirebase() {
+  if (!estaConfigurado() || !minhaPosicao) return;
+  if (enviandoFirebase) return;
+  enviandoFirebase = true;
+  const nome = localStorage.getItem("nomeFamiliar") || "Familiar";
+  const db = abrirFirebase();
+  const minha = dbRef(db, `familia/${nome.replace(/[^a-zA-Z0-9-_]/g, "_")}`);
+  update(minha, {
+    nome,
+    lat: minhaPosicao.lat,
+    lng: minhaPosicao.lng,
+    atualizado: fbServerTimestamp()
+  }).finally(() => { enviandoFirebase = false; });
+}
+
+function escutarFamilia() {
+  if (!estaConfigurado()) return;
+  const db = abrirFirebase();
+  const lista = query(dbRef(db, "familia"), limitToLast(100));
+  onValue(lista, (snap) => {
+    membros.clear();
+    const dados = snap.val() || {};
+    Object.values(dados).forEach((m) => {
+      if (m && typeof m.lat === "number" && typeof m.lng === "number") {
+        membros.set(m.nome, m);
+        atualizarMarcadorDoMembro(m);
+      }
+    });
+    atualizarInterface();
+    renderizarFamilia();
+  });
+}
+
+const marcadoresMembros = new Map();
+
+function atualizarMarcadorDoMembro(m) {
+  const existente = marcadoresMembros.get(m.nome);
+  if (existente) {
+    existente.setLatLng([m.lat, m.lng]);
+    existente.bindPopup(`<b>${m.nome}</b><br>atualizado há pouco`);
+  } else {
+    const marcador = L.marker([m.lat, m.lng], { icon: iconeMembro })
+      .addTo(mapa)
+      .bindPopup(`<b>${m.nome}</b>`);
+    marcadoresMembros.set(m.nome, marcador);
+  }
+}
+
+function renderizarFamilia() {
+  const meuNome = localStorage.getItem("nomeFamiliar") || "";
+  const html = [];
+  if (minhaPosicao) {
+    html.push(`
+      <div class="item-familia">
+        <div class="nome">${meuNome || "Eu"} (eu)</div>
+        <div class="tempo">agora</div>
+      </div>`);
+  }
+  membros.forEach((m) => {
+    if (m.nome === meuNome) return;
+    const dist = minhaPosicao ? distanciaEmKm(minhaPosicao, m) : 0;
+    html.push(`
+      <div class="item-familia">
+        <div class="nome">${m.nome}</div>
+        <div class="distancia">${minhaPosicao ? dist.toFixed(1) + " km" : "—"}</div>
+      </div>`);
+  });
+  listaFamilia.innerHTML = html.length > 0 ? html.join("") : "<div style='padding:8px 0;font-size:12px;opacity:.6'>Nenhum familiar conectado.</div>";
+}
+
+btnCentralizar.addEventListener("click", () => {
+  if (minhaPosicao) mapa.setView([minhaPosicao.lat, minhaPosicao.lng], 15);
+});
+
+navigator.geolocation.watchPosition((pos) => {
+  const { latitude, longitude, accuracy } = pos.coords;
+  minhaPosicao = { lat: latitude, lng: longitude, acuracia: accuracy };
+  statusPonto.classList.add("ligado");
+  statusPonto.classList.remove("desligado");
+  statusTexto.textContent = "Rastreando sua posição";
+  if (!meuMarcador) {
+    meuMarcador = L.marker([latitude, longitude], { icon: iconeEu }).addTo(mapa).bindPopup("<b>Você</b>");
+    meuCirculo = L.circle([latitude, longitude], { radius: accuracy, color: "#3949AB", fillOpacity: 0.15 }).addTo(mapa);
+    mapa.setView([latitude, longitude], 15);
+  } else {
+    meuMarcador.setLatLng([latitude, longitude]);
+    meuCirculo.setLatLng([latitude, longitude]);
+    meuCirculo.setRadius(accuracy);
+  }
+  atualizarInterface();
+  registrarNoFirebase();
+}, (err) => {
+  statusTexto.textContent = err.code === 1 ? "Permissão negada — ative a localização" : "Erro ao obter localização";
+}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+
+setInterval(registrarNoFirebase, 15000);
+
+atualizarInterface();
+escutarFamilia();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

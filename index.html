@@ -86,6 +86,14 @@
     box-shadow: 0 4px 16px rgba(0,0,0,.45);
   }
   button.sos:active { transform: scale(.92); }
+  button.btn-mic {
+    position: fixed; z-index: 1500; bottom: 92px; right: 12px;
+    width: 58px; height: 58px; border-radius: 50%; background: #3949AB;
+    color: #fff; font-size: 22px; border: 3px solid #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,.45);
+  }
+  button.btn-mic.ativo { background: var(--verde); animation: pulsar 1s infinite; }
+  button.btn-mic:active { transform: scale(.92); }
   .item-familia .rota {
     background: transparent; border: 1px solid rgba(255,255,255,.25);
     color: var(--texto); padding: 4px 8px; font-size: 11px; border-radius: 8px;
@@ -190,6 +198,7 @@
 </div>
 
 <button class="sos" id="btnSos" title="Pedido de ajuda">SOS</button>
+<button class="btn-mic" id="btnMic" title="Assistente de voz">🎤</button>
 
 <div class="painel chat" id="painelChat">
   <div style="font-weight:700;margin-bottom:8px">Chat em família 💬</div>
@@ -898,6 +907,169 @@ function compartilharLink() {
   } else {
     prompt("Copie o link:", link);
   }
+}
+
+const btnMic = document.getElementById("btnMic");
+let micAtivo = false;
+let reconVoz = null;
+
+function falar(texto) {
+  notificar("🎤 " + texto);
+  try {
+    if (!window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const frase = new SpeechSynthesisUtterance(texto);
+    frase.lang = "pt-BR";
+    frase.rate = 1;
+    speechSynthesis.speak(frase);
+  } catch (e) {}
+}
+
+btnMic.addEventListener("click", () => {
+  if (micAtivo) desligarMic();
+  else ligarMic();
+});
+
+function ligarMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    notificar("Reconhecimento de voz não suportado neste navegador.");
+    return;
+  }
+  micAtivo = true;
+  btnMic.classList.add("ativo");
+  falar("Pronta! Pode falar.");
+  const r = new SR();
+  reconVoz = r;
+  r.lang = "pt-BR";
+  r.continuous = true;
+  r.interimResults = false;
+  r.maxAlternatives = 3;
+  const reiniciar = () => { if (micAtivo) { try { r.start(); } catch (e) {} } };
+  r.onresult = (ev) => {
+    const ultimo = ev.results[ev.results.length - 1];
+    const texto = ((ultimo && ultimo[0] && ultimo[0].transcript) || "").trim().toLowerCase();
+    if (texto) processarComando(texto);
+  };
+  r.onerror = (ev) => {
+    if (ev.error === "not-allowed") {
+      notificar("Permita o microfone do navegador.");
+      desligarMic();
+      return;
+    }
+    if (ev.error === "no-speech" || ev.error === "aborted" || ev.error === "network") {
+      setTimeout(reiniciar, 800);
+    }
+  };
+  r.onend = reiniciar;
+  try { r.start(); } catch (e) {}
+}
+
+function desligarMic() {
+  micAtivo = false;
+  btnMic.classList.remove("ativo");
+  if (reconVoz) { try { reconVoz.stop(); } catch (e) {} reconVoz = null; }
+}
+
+function processarComando(t) {
+  if (/(?:^| )sos|socorro|emergencia|perigo/.test(t) && !/sair do sos/.test(t)) {
+    const db = abrirFirebase();
+    set(dbRef(db, "sos/alerta"), {
+      nome: localStorage.getItem("nomeFamiliar") || "Familiar",
+      lat: minhaPosicao ? minhaPosicao.lat : 0,
+      lng: minhaPosicao ? minhaPosicao.lng : 0,
+      t: Date.now()
+    }).catch(() => {});
+    falar("SOS enviado para a família!");
+    return;
+  }
+  const mPesquisa = t.match(/(?:onde esta|cade|cadê|mostra rota|rota do|rota de)\s+([a-z\u00E0-\u00FF]+)/);
+  if (mPesquisa) {
+    localizarPorVoz(mPesquisa[1]);
+    return;
+  }
+  if (/quem|status|bateria|todos|resumo/.test(t)) {
+    lerResumoFamilia();
+    return;
+  }
+  if (/adiciona lugar|cria lugar|novo lugar|criar lugar|marca lugar/.test(t)) {
+    adicionarLugarVoz();
+    return;
+  }
+  if (/cerca|lugares|onde estao meus lugares/.test(t)) {
+    const nomes = lugares.length ? lugares.map((l) => l.nome).join(", ") : "nenhum lugar criado ainda";
+    falar("Você tem " + (lugares.length || 0) + " lugares: " + nomes);
+    return;
+  }
+  const mMensagem = t.match(/(?:manda mensagem|manda pra familia|avisa|fala pra familia|mensagem)\s+(.+)/);
+  if (mMensagem) {
+    enviarChatVoz(mMensagem[1]);
+    return;
+  }
+  if (/para de ouvir|desliga|silenciar|chega/.test(t)) {
+    desligarMic();
+    falar("Desliguei o microfone.");
+    return;
+  }
+  if (/ajuda|o que voce faz|comandos|o que voce sabe/.test(t)) {
+    falar("Posso dizer onde está alguém, mandar SOS, criar lugar, ler status, bateria e mandar mensagens para a família.");
+    return;
+  }
+  falar("Não entendi. Diga: cade o João, manda sos, criar lugar, resumo, bateria, ou manda mensagem e o texto.");
+}
+
+function localizarPorVoz(nome) {
+  const ehEu = nome === "eu" || nome === "me";
+  if (ehEu) {
+    if (!minhaPosicao) { falar("Ainda sem minha posição."); return; }
+    falar("Você está em latitude " + minhaPosicao.lat.toFixed(4) + ", longitude " + minhaPosicao.lng.toFixed(4) + ".");
+    return;
+  }
+  const alvo = [...membros].find(([chave, m]) =>
+    m.nome.toLowerCase().startsWith(nome) || nome.startsWith(m.nome.toLowerCase())
+  );
+  if (!alvo) { falar("Não achei " + nome + " conectado agora."); return; }
+  const m = alvo[1];
+  if (minhaPosicao) {
+    const dist = distanciaEmKm(minhaPosicao, m);
+    const texto = dist < 1
+      ? Math.round(dist * 1000) + " metros"
+      : dist.toFixed(1) + " quilômetros";
+    mapa.setView([m.lat, m.lng], 15);
+    falar(m.nome + " está a aproximadamente " + texto + " de você.");
+  } else {
+    mapa.setView([m.lat, m.lng], 15);
+    falar(m.nome + " está no mapa agora.");
+  }
+}
+
+function lerResumoFamilia() {
+  const partes = [];
+  if (modoInvisivel) partes.push((localStorage.getItem("nomeFamiliar") || "Você") + " em modo oculto");
+  membros.forEach((m) => {
+    let p = m.nome;
+    if (m.status) p += ", " + nomeStatus(m.status);
+    if (m.bateria !== undefined) p += ", bateria " + m.bateria + " por cento";
+    partes.push(p);
+  });
+  falar(partes.length ? partes.join(". ") + "." : "Ninguém conectado no momento.");
+}
+
+function adicionarLugarVoz() {
+  if (!minhaPosicao) { falar("Posição ainda não disponível."); return; }
+  lugares.push({ id: Date.now(), nome: "Minha posição", lat: minhaPosicao.lat, lng: minhaPosicao.lng, raio: 300 });
+  salvarLugares();
+  renderizarLugares();
+  falar("Lugar criado aqui, no raio de trezentos metros.");
+}
+
+function enviarChatVoz(texto) {
+  const nome = localStorage.getItem("nomeFamiliar");
+  if (!nome || !estaConfigurado()) return;
+  const db = abrirFirebase();
+  push(dbRef(db, "chat"), { nome, texto, t: Date.now() })
+    .then(() => falar("Mensagem enviada."))
+    .catch(() => falar("Não consegui enviar a mensagem."));
 }
 
 function atualizarBateria() {

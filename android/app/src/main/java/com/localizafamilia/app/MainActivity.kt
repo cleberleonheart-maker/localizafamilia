@@ -12,6 +12,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.RenderProcessGoneDetail
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -48,6 +49,24 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 injetarVoz()
                 sincronizarNome()
+            }
+
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: RenderProcessGoneDetail?
+            ): Boolean {
+                prefs.edit()
+                    .putLong("renderCrash", System.currentTimeMillis())
+                    .putBoolean("renderCrashFatal", detail?.didCrash() == true)
+                    .apply()
+                runOnUiThread {
+                    try {
+                        view?.loadUrl("about:blank")
+                        view?.loadUrl(APP_URL)
+                    } catch (_: Exception) {
+                    }
+                }
+                return true
             }
         }
         webView.loadUrl(APP_URL)

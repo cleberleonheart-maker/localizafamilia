@@ -42,9 +42,13 @@ class LocalizacaoServico : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        criarCanal()
-        startForeground(NOTIFICACAO_ID, notificacao())
-        iniciarAtualizacoes()
+        try {
+            criarCanal()
+            startForeground(NOTIFICACAO_ID, notificacao())
+            iniciarAtualizacoes()
+        } catch (_: Exception) {
+            stopSelf()
+        }
         return START_STICKY
     }
 
@@ -68,7 +72,8 @@ class LocalizacaoServico : Service() {
             fused.lastLocation.addOnSuccessListener { loc: Location? ->
                 if (loc != null) enviarParaFirebase(loc)
             }
-        } catch (_: SecurityException) {
+        } catch (e: Exception) {
+            android.util.Log.w("LF", "Falha ao iniciar GPS", e)
         }
     }
 

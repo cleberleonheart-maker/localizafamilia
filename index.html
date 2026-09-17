@@ -872,11 +872,20 @@ tarefaTexto.addEventListener("keydown", (e) => {
 
 function adicionarTarefa() {
   const texto = tarefaTexto.value.trim();
+  if (!texto) return;
   const nome = localStorage.getItem("nomeFamiliar");
-  if (!texto || !nome || !estaConfigurado()) return;
+  if (!nome) {
+    notificar("Digite seu nome no campo no topo do mapa primeiro.");
+    campoNome.style.display = "block";
+    return;
+  }
+  if (!estaConfigurado()) {
+    notificar("Tarefas precisam do Firebase configurado.");
+    return;
+  }
   const db = abrirFirebase();
   push(dbRef(db, "tarefas"), { texto, criadoPor: nome, feito: false, t: Date.now() })
-    .then(() => { tarefaTexto.value = ""; })
+    .then(() => { tarefaTexto.value = ""; notificar("Tarefa adicionada!"); })
     .catch(() => notificar("Falha ao adicionar tarefa"));
 }
 

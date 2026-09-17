@@ -1,4 +1,4 @@
-const CACHE = "localizafamilia-v8";
+const CACHE = "localizafamilia-v9";
 const ARQUIVOS = [
   "./",
   "./index.html",

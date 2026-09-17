@@ -1,9 +1,10 @@
-const CACHE = "localizafamilia-v1";
+const CACHE = "localizafamilia-v2";
 const ARQUIVOS = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./icon.svg"
+  "./icon.svg",
+  "./LocalizaFamilia-v1.0.apk"
 ];
 
 self.addEventListener("install", (e) => {

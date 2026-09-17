@@ -63,6 +63,51 @@
     width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
     color: var(--texto); border-radius: 10px; padding: 10px 12px; font-size: 14px;
   }
+  .painel.lugares { bottom: 86px; background: #232C47; }
+  .item-lugar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px;
+  }
+  .item-lugar:last-child { border-bottom: 0; }
+  .item-lugar .nome { flex: 1; font-weight: 600; }
+  .item-lugar .linha { font-size: 11px; opacity: .6; }
+  .item-lugar .remover { background: transparent; color: var(--vermelho); padding: 4px 8px; }
+  .alerta {
+    position: fixed; z-index: 3000; top: 74px; left: 50%; transform: translateX(-50%);
+    width: min(94%, 420px); background: #FFC107; color: #000; border-radius: 10px;
+    padding: 10px 14px; font-weight: 600; text-align: center; font-size: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4); display: none;
+  }
+  .alerta.visivel { display: block; }
+  button.sos {
+    position: fixed; z-index: 1500; bottom: 92px; left: 12px;
+    width: 58px; height: 58px; border-radius: 50%; background: var(--vermelho);
+    color: #fff; font-size: 15px; font-weight: 800; border: 3px solid #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,.45);
+  }
+  button.sos:active { transform: scale(.92); }
+  .item-familia .rota {
+    background: transparent; border: 1px solid rgba(255,255,255,.25);
+    color: var(--texto); padding: 4px 8px; font-size: 11px; border-radius: 8px;
+  }
+  .sos-tela {
+    position: fixed; z-index: 5000; inset: 0; background: rgba(120,0,0,.55);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .sos-bx {
+    background: var(--vermelho); color: #fff; border-radius: 18px; width: min(94%, 360px);
+    padding: 22px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.6);
+    animation: pulsar 1s infinite;
+  }
+  @keyframes pulsar { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+  .sos-titulo { font-size: 34px; font-weight: 900; letter-spacing: 2px; }
+  .sos-nome { font-size: 20px; font-weight: 700; margin: 8px 0 2px; }
+  .sos-info { font-size: 13px; opacity: .9; margin-bottom: 16px; }
+  .sos-bx button {
+    background: #fff; color: var(--vermelho); border-radius: 10px;
+    padding: 10px 14px; font-weight: 700; margin: 4px;
+  }
+  .sos-bx .reconhecer { background: transparent; color: #fff; border: 2px solid #fff; }
 </style>
 </head>
 <body>
@@ -76,7 +121,30 @@
     <div class="subtitulo" id="statusTexto">Aguardando permissão de localização...</div>
   </div>
   <button id="btnFamilia" class="desativado">Família</button>
-  <button id="btnApk" title="Baixar versão Android (APK)">📦 APK</button>
+  <button id="btnLugar" title="Cercas de aviso">📌</button>
+  <button id="btnApk" title="Baixar versão Android (APK)">📦</button>
+</div>
+
+<div class="alerta" id="alerta"></div>
+
+<div class="painel lugares" id="painelLugares">
+  <div style="font-weight:700;margin-bottom:8px">Cercas de aviso 📌</div>
+  <button id="btnAddLugar" style="width:100%;margin-bottom:6px">Adicionar lugar (onde estou)</button>
+  <div id="listaLugares"></div>
+</div>
+
+<button class="sos" id="btnSos" title="Pedido de ajuda">SOS</button>
+
+<div class="sos-tela" id="sosTela" style="display:none">
+  <div class="sos-bx">
+    <div class="sos-titulo">⚠️ SOS</div>
+    <div class="sos-nome" id="sosNome"></div>
+    <div class="sos-info" id="sosInfo"></div>
+    <p style="font-size:13px;margin-bottom:12px">Essa pessoa pediu ajuda</p>
+    <button id="sosMapa">Ver no mapa</button>
+    <br>
+    <button class="reconhecer" id="sosOk">OK, entendi</button>
+  </div>
 </div>
 
 <div class="lista" id="listaFamilia"></div>
@@ -161,11 +229,106 @@ function abrirFirebase() {
 btnFamilia.addEventListener("click", () => {
   if (!estaConfigurado()) return;
   listaFamilia.classList.toggle("visivel");
+  painelLugares.classList.remove("visivel");
+  campoNome.style.display = "none";
 });
 
 document.getElementById("btnApk").addEventListener("click", () => {
   window.open("LocalizaFamilia-v1.0.apk", "_blank");
 });
+
+const painelLugares = document.getElementById("painelLugares");
+const listaLugares = document.getElementById("listaLugares");
+const btnAddLugar = document.getElementById("btnAddLugar");
+const alerta = document.getElementById("alerta");
+
+let lugares = JSON.parse(localStorage.getItem("lugares") || "[]");
+const estadoCerca = new Map();
+
+document.getElementById("btnLugar").addEventListener("click", () => {
+  painelLugares.classList.toggle("visivel");
+  listaFamilia.classList.remove("visivel");
+  campoNome.style.display = "none";
+  renderizarLugares();
+});
+
+function salvarLugares() {
+  localStorage.setItem("lugares", JSON.stringify(lugares));
+}
+
+function notificar(msg) {
+  alerta.textContent = msg;
+  alerta.classList.add("visivel");
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  clearTimeout(alerta._t);
+  alerta._t = setTimeout(() => alerta.classList.remove("visivel"), 9000);
+}
+
+function renderizarLugares() {
+  if (lugares.length === 0) {
+    listaLugares.innerHTML = "<div style='font-size:12px;opacity:.7;padding:6px 0'>Nenhum lugar ainda. Adicione um para ganhar aviso quando alguém chega ou sai.</div>";
+    return;
+  }
+  listaLugares.innerHTML = lugares.map((l, i) => `
+    <div class="item-lugar">
+      <div style="flex:1">
+        <div class="nome">${l.nome}</div>
+        <div class="linha">${l.lat.toFixed(5)}, ${l.lng.toFixed(5)} · raio ${l.raio} m</div>
+      </div>
+      <button class="remover" data-i="${i}">✕</button>
+    </div>`).join("");
+  listaLugares.querySelectorAll(".remover").forEach((b) => {
+    b.addEventListener("click", () => {
+      lugares.splice(parseInt(b.dataset.i, 10), 1);
+      salvarLugares();
+      renderizarLugares();
+    });
+  });
+}
+
+btnAddLugar.addEventListener("click", () => {
+  if (!minhaPosicao) {
+    notificar("Posição ainda não disponível. Aguarde e tente de novo.");
+    return;
+  }
+  const nome = prompt("Nome do lugar (ex: Casa):");
+  if (!nome || !nome.trim()) return;
+  const raio = parseInt(prompt("Distância em metros do aviso (ex: 300):", "300"), 10) || 300;
+  lugares.push({
+    id: Date.now(),
+    nome: nome.trim(),
+    lat: minhaPosicao.lat,
+    lng: minhaPosicao.lng,
+    raio
+  });
+  salvarLugares();
+  renderizarLugares();
+  notificar(`Lugar "${nome.trim()}" criado na sua posição`);
+});
+
+function dentroDoLugar(lugar, lat, lng) {
+  return distanciaEmKm(lugar, { lat, lng }) * 1000 <= lugar.raio;
+}
+
+function verificarCercas() {
+  if (lugares.length === 0) return;
+  const todos = [];
+  if (minhaPosicao) {
+    todos.push({ nome: localStorage.getItem("nomeFamiliar") || "Eu", lat: minhaPosicao.lat, lng: minhaPosicao.lng });
+  }
+  membros.forEach((m) => todos.push({ nome: m.nome, lat: m.lat, lng: m.lng }));
+  lugares.forEach((lugar) => {
+    todos.forEach((p) => {
+      const dentro = dentroDoLugar(lugar, p.lat, p.lng);
+      const chave = `${p.nome}|${lugar.id}`;
+      const antes = estadoCerca.get(chave);
+      if (antes !== undefined && antes !== dentro) {
+        notificar(`${p.nome} ${dentro ? "chegou em" : "saiu de"} ${lugar.nome}`);
+      }
+      estadoCerca.set(chave, dentro);
+    });
+  });
+}
 
 inputNome.addEventListener("change", () => {
   const nome = inputNome.value.trim();
@@ -217,10 +380,12 @@ function escutarFamilia() {
       if (m && typeof m.lat === "number" && typeof m.lng === "number") {
         membros.set(m.nome, m);
         atualizarMarcadorDoMembro(m);
+        ligarHistoricoDe(m.nome.replace(/[^a-zA-Z0-9-_]/g, "_"));
       }
     });
     atualizarInterface();
     renderizarFamilia();
+    verificarCercas();
   });
 }
 
@@ -247,6 +412,7 @@ function renderizarFamilia() {
       <div class="item-familia">
         <div class="nome">${meuNome || "Eu"} (eu)</div>
         <div class="tempo">agora</div>
+        <button class="rota" data-nome="${meuNome || "Eu"}">Rota</button>
       </div>`);
   }
   membros.forEach((m) => {
@@ -256,9 +422,174 @@ function renderizarFamilia() {
       <div class="item-familia">
         <div class="nome">${m.nome}</div>
         <div class="distancia">${minhaPosicao ? dist.toFixed(1) + " km" : "—"}</div>
+        <button class="rota" data-nome="${m.nome}">Rota</button>
       </div>`);
   });
   listaFamilia.innerHTML = html.length > 0 ? html.join("") : "<div style='padding:8px 0;font-size:12px;opacity:.6'>Nenhum familiar conectado.</div>";
+  listaFamilia.querySelectorAll(".rota").forEach((b) => {
+    b.addEventListener("click", () => verRota(b.dataset.nome));
+  });
+}
+
+const historicoLocal = JSON.parse(localStorage.getItem("hist") || "[]");
+const trilhaMembros = new Map();
+
+function meiaNoiteHoje() {
+  const agora = new Date();
+  return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime();
+}
+
+function guardarHistorico() {
+  if (!minhaPosicao) return;
+  const agora = Date.now();
+  const ult = historicoLocal[historicoLocal.length - 1];
+  if (ult && agora - ult.t < 30000 && distanciaEmKm(ult, minhaPosicao) * 1000 < 40) return;
+  historicoLocal.push({ t: agora, lat: minhaPosicao.lat, lng: minhaPosicao.lng });
+  if (historicoLocal.length > 3000) historicoLocal.splice(0, historicoLocal.length - 3000);
+  localStorage.setItem("hist", JSON.stringify(historicoLocal));
+}
+
+function enviarHistoricoFirebase() {
+  if (!estaConfigurado() || !minhaPosicao) return;
+  const nome = localStorage.getItem("nomeFamiliar");
+  if (!nome) return;
+  const chave = nome.replace(/[^a-zA-Z0-9-_]/g, "_");
+  const db = abrirFirebase();
+  set(dbRef(db, `historico/${chave}/${Date.now()}`), {
+    lat: minhaPosicao.lat,
+    lng: minhaPosicao.lng,
+    t: Date.now()
+  }).catch(() => {});
+}
+
+function ligarHistoricoDe(chave) {
+  if (!estaConfigurado() || trilhaMembros.has(chave)) return;
+  const db = abrirFirebase();
+  onValue(dbRef(db, `historico/${chave}`), (snap) => {
+    const valores = snap.val() || {};
+    const pontos = Object.values(valores)
+      .filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
+      .sort((a, b) => a.t - b.t);
+    trilhaMembros.set(chave, pontos);
+  });
+}
+
+function verRota(nome) {
+  const ehEu = nome === (localStorage.getItem("nomeFamiliar") || "Eu");
+  if (ehEu) {
+    desenharTrilha(historicoLocal.filter((p) => p.t >= meiaNoiteHoje()), nome);
+    return;
+  }
+  const chave = nome.replace(/[^a-zA-Z0-9-_]/g, "_");
+  ligarHistoricoDe(chave);
+  const pontos = trilhaMembros.get(chave);
+  desenharTrilha((pontos || []).filter((p) => p.t >= meiaNoiteHoje()), nome);
+}
+
+let camadaTrilha = null;
+
+function desenharTrilha(pontos, nome) {
+  if (camadaTrilha) {
+    mapa.removeLayer(camadaTrilha);
+    camadaTrilha = null;
+  }
+  if (!pontos.length) {
+    notificar(`Sem pontos registrados hoje para ${nome} ainda.`);
+    return;
+  }
+  camadaTrilha = L.layerGroup().addTo(mapa);
+  L.polyline(pontos.map((p) => [p.lat, p.lng]), { color: "#FF9800", weight: 4 }).addTo(camadaTrilha);
+  L.circleMarker([pontos[0].lat, pontos[0].lng], { color: "#2ECC71", radius: 8 })
+    .addTo(camadaTrilha).bindPopup("<b>Início do dia</b>");
+  const ultimo = pontos[pontos.length - 1];
+  L.circleMarker([ultimo.lat, ultimo.lng], { color: "#E74C3C", radius: 8 })
+    .addTo(camadaTrilha).bindPopup(`<b>${nome}</b><br>último ponto`);
+  mapa.fitBounds(L.latLngBounds(pontos.map((p) => [p.lat, p.lng])).pad(0.2));
+  notificar(`Rota de ${nome}: ${pontos.length} pontos hoje`);
+}
+
+const btnSos = document.getElementById("btnSos");
+const sosTela = document.getElementById("sosTela");
+const sosNome = document.getElementById("sosNome");
+const sosInfo = document.getElementById("sosInfo");
+let ultimoSos = null;
+let sosMarcador = null;
+
+function tocarAlarme() {
+  if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const bip = (atraso) => setTimeout(() => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.type = "square";
+      osc.frequency.value = 880;
+      g.gain.setValueAtTime(0.25, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.7);
+    }, atraso);
+    bip(0);
+    bip(900);
+    bip(1800);
+  } catch (e) {}
+}
+
+function mostrarSos(dados) {
+  ultimoSos = dados;
+  sosNome.textContent = dados.nome || "Familiar";
+  sosInfo.textContent = dados.t
+    ? `às ${new Date(dados.t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+    : "agora mesmo";
+  sosTela.style.display = "flex";
+  tocarAlarme();
+  if (sosMarcador) mapa.removeLayer(sosMarcador);
+  if (typeof dados.lat === "number" && typeof dados.lng === "number") {
+    sosMarcador = L.marker([dados.lat, dados.lng], { icon: iconeMembro })
+      .addTo(mapa)
+      .bindPopup(`<b style="color:#E74C3C">⚠️ SOS — ${dados.nome || "Familiar"}</b>`);
+    mapa.setView([dados.lat, dados.lng], 15);
+  }
+}
+
+document.getElementById("sosMapa").addEventListener("click", () => {
+  if (ultimoSos && typeof ultimoSos.lat === "number") {
+    mapa.setView([ultimoSos.lat, ultimoSos.lng], 16);
+  }
+});
+
+document.getElementById("sosOk").addEventListener("click", () => {
+  sosTela.style.display = "none";
+});
+
+btnSos.addEventListener("click", () => {
+  if (!confirm("Enviar pedido de SOS para sua família?")) return;
+  if (!estaConfigurado()) {
+    notificar("SOS precisa do Firebase configurado.");
+    return;
+  }
+  const nome = localStorage.getItem("nomeFamiliar") || "Familiar";
+  const db = abrirFirebase();
+  set(dbRef(db, "sos/alerta"), {
+    nome,
+    lat: minhaPosicao ? minhaPosicao.lat : 0,
+    lng: minhaPosicao ? minhaPosicao.lng : 0,
+    t: Date.now()
+  }).catch(() => notificar("Falha ao enviar SOS"));
+  notificar("⚠️ SOS enviado para a família");
+});
+
+function escutarSos() {
+  if (!estaConfigurado()) return;
+  const db = abrirFirebase();
+  onValue(dbRef(db, "sos/alerta"), (snap) => {
+    if (snap.exists()) mostrarSos(snap.val());
+  });
 }
 
 btnCentralizar.addEventListener("click", () => {
@@ -282,14 +613,24 @@ navigator.geolocation.watchPosition((pos) => {
   }
   atualizarInterface();
   registrarNoFirebase();
+  guardarHistorico();
+  verificarCercas();
 }, (err) => {
   statusTexto.textContent = err.code === 1 ? "Permissão negada — ative a localização" : "Erro ao obter localização";
 }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
 
-setInterval(registrarNoFirebase, 15000);
+setInterval(() => {
+  registrarNoFirebase();
+  enviarHistoricoFirebase();
+}, 15000);
 
 atualizarInterface();
 escutarFamilia();
+escutarSos();
+
+if (estaConfigurado() && localStorage.getItem("nomeFamiliar")) {
+  ligarHistoricoDe(localStorage.getItem("nomeFamiliar").replace(/[^a-zA-Z0-9-_]/g, "_"));
+}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});

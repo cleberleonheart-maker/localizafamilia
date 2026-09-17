@@ -127,6 +127,40 @@
   }
   .status-row button.ativo { background: var(--azul-claro); border-color: var(--azul-claro); }
   button.oculto-ativo { opacity: 1; box-shadow: 0 0 8px var(--vermelho); }
+  .painel.topo button { padding: 8px 6px; font-size: 12px; }
+  .login-tela {
+    position: fixed; z-index: 9000; inset: 0; background: rgba(6,10,25,.92);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .login-bx {
+    background: var(--cartao); border-radius: 18px; width: min(94%, 360px);
+    padding: 24px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.6);
+  }
+  .login-titulo { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .login-info { font-size: 13px; opacity: .8; margin-bottom: 16px; }
+  .login-bx input {
+    width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
+    color: var(--texto); border-radius: 10px; padding: 11px 12px; font-size: 15px;
+    text-align: center; margin-bottom: 12px;
+  }
+  .login-bx button { width: 100%; }
+  .login-aviso { color: var(--vermelho); font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .painel.tarefas { bottom: 86px; background: #232C47; }
+  .item-tarefa {
+    display: flex; align-items: flex-start; gap: 8px; padding: 9px 0;
+    border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px;
+  }
+  .item-tarefa:last-child { border-bottom: 0; }
+  .item-tarefa .check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid rgba(255,255,255,.35); flex-shrink: 0; cursor: pointer; display:flex; align-items:center; justify-content:center; font-size: 13px; }
+  .item-tarefa .check.feita { background: var(--verde); border-color: var(--verde); color: #000; }
+  .item-tarefa .txt { flex: 1; }
+  .item-tarefa .txt.feita { text-decoration: line-through; opacity: .55; }
+  .item-tarefa .linha { font-size: 10px; opacity: .55; margin-top: 2px; }
+  .tarefa-input { display: flex; gap: 8px; margin-top: 8px; }
+  .tarefa-input input {
+    flex: 1; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
+    color: var(--texto); border-radius: 10px; padding: 9px 12px; font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -142,8 +176,8 @@
   <button id="btnFamilia" class="desativado">Família</button>
   <button id="btnLugar" title="Cercas de aviso">📌</button>
   <button id="btnChat" title="Chat em família">💬</button>
+  <button id="btnTarefas" title="Tarefas da família">📋</button>
   <button id="btnInvisivel" title="Modo invisível" class="desativado">🌙</button>
-  <button id="btnCompartilhar" title="Compartilhar minha localização">📤</button>
   <button id="btnApk" title="Baixar versão Android (APK)">📦</button>
 </div>
 
@@ -163,6 +197,25 @@
   <div class="chat-input">
     <input id="chatTexto" placeholder="Escreva uma mensagem..." maxlength="300">
     <button id="chatEnviar">Enviar</button>
+  </div>
+</div>
+
+<div class="painel tarefas" id="painelTarefas">
+  <div style="font-weight:700;margin-bottom:8px">Tarefas da família 📋</div>
+  <div id="listaTarefas"></div>
+  <div class="tarefa-input">
+    <input id="tarefaTexto" placeholder="Nova tarefa (ex: comprar pão)..." maxlength="200">
+    <button id="tarefaEnviar">Add</button>
+  </div>
+</div>
+
+<div class="login-tela" id="loginTela">
+  <div class="login-bx">
+    <div class="login-titulo">🔒 Localiza Família</div>
+    <div class="login-info" id="loginInfo">Verificando...</div>
+    <input type="password" id="loginSenha" placeholder="Senha da família" autocomplete="off">
+    <button id="loginEntrar">Entrar</button>
+    <div class="login-aviso" id="loginAviso"></div>
   </div>
 </div>
 
@@ -475,6 +528,8 @@ function renderizarFamilia() {
         <button class="${meuStatus === s.id ? "ativo" : ""}" data-status="${s.id}">
           ${s.icone} ${s.nome}
         </button>`).join("")}
+      <button data-missao="compartilhar">📤 Aqui</button>
+      <button data-missao="sair">🔒 Sair</button>
     </div>`);
   if (minhaPosicao) {
     html.push(`
@@ -501,6 +556,18 @@ function renderizarFamilia() {
   listaFamilia.querySelectorAll("[data-status]").forEach((b) => {
     b.addEventListener("click", () => definirStatus(b.dataset.status));
   });
+  listaFamilia.querySelectorAll("[data-missao]").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (b.dataset.missao === "compartilhar") compartilharLink();
+      if (b.dataset.missao === "sair") sairFamilia();
+    });
+  });
+}
+
+function sairFamilia() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("nomeFamiliar");
+  location.reload();
 }
 
 function definirStatus(id) {
@@ -680,7 +747,6 @@ const chatMsgs = document.getElementById("chatMsgs");
 const chatTexto = document.getElementById("chatTexto");
 const chatEnviar = document.getElementById("chatEnviar");
 const btnInvisivel = document.getElementById("btnInvisivel");
-const btnCompartilhar = document.getElementById("btnCompartilhar");
 
 let chatMensagens = [];
 let ultimaMsgVista = "";
@@ -746,7 +812,79 @@ btnInvisivel.addEventListener("click", () => {
   renderizarFamilia();
 });
 
-btnCompartilhar.addEventListener("click", () => {
+const btnTarefas = document.getElementById("btnTarefas");
+const painelTarefas = document.getElementById("painelTarefas");
+const listaTarefas = document.getElementById("listaTarefas");
+const tarefaTexto = document.getElementById("tarefaTexto");
+const tarefaEnviar = document.getElementById("tarefaEnviar");
+
+let tarefas = [];
+
+btnTarefas.addEventListener("click", () => {
+  painelTarefas.classList.toggle("visivel");
+  listaFamilia.classList.remove("visivel");
+  painelLugares.classList.remove("visivel");
+  painelChat.classList.remove("visivel");
+  campoNome.style.display = "none";
+  renderizarTarefas();
+});
+
+tarefaEnviar.addEventListener("click", adicionarTarefa);
+tarefaTexto.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") adicionarTarefa();
+});
+
+function adicionarTarefa() {
+  const texto = tarefaTexto.value.trim();
+  const nome = localStorage.getItem("nomeFamiliar");
+  if (!texto || !nome || !estaConfigurado()) return;
+  const db = abrirFirebase();
+  push(dbRef(db, "tarefas"), { texto, criadoPor: nome, feito: false, t: Date.now() })
+    .then(() => { tarefaTexto.value = ""; })
+    .catch(() => notificar("Falha ao adicionar tarefa"));
+}
+
+function renderizarTarefas() {
+  if (tarefas.length === 0) {
+    listaTarefas.innerHTML = "<div style='font-size:12px;opacity:.7;padding:6px 0'>Nenhuma tarefa ainda.</div>";
+    return;
+  }
+  listaTarefas.innerHTML = tarefas.map((t, i) => `
+    <div class="item-tarefa">
+      <div class="check ${t.feito ? "feita" : ""}" data-i="${i}">${t.feito ? "✓" : ""}</div>
+      <div class="txt ${t.feito ? "feita" : ""}">
+        <div>${t.texto || ""}</div>
+        <div class="linha">${t.criadoPor || ""}${t.feitoPor ? " · feito por " + t.feitoPor : ""}</div>
+      </div>
+    </div>`).join("");
+  listaTarefas.querySelectorAll(".check").forEach((c) => {
+    c.addEventListener("click", () => {
+      const t = tarefas[parseInt(c.dataset.i, 10)];
+      if (!t || !t._chave) return;
+      const db = abrirFirebase();
+      update(dbRef(db, `tarefas/${t._chave}`), {
+        feito: !t.feito,
+        feitoPor: !t.feito ? (localStorage.getItem("nomeFamiliar") || "") : null
+      }).catch(() => {});
+    });
+  });
+}
+
+function escutarTarefas() {
+  if (!estaConfigurado()) return;
+  const db = abrirFirebase();
+  const lista = query(dbRef(db, "tarefas"), limitToLast(100));
+  onValue(lista, (snap) => {
+    const v = snap.val() || {};
+    tarefas = Object.entries(v)
+      .map(([chave, t]) => (t ? { _chave: chave, ...t } : null))
+      .filter(Boolean)
+      .sort((a, b) => (a.t || 0) - (b.t || 0));
+    renderizarTarefas();
+  });
+}
+
+function compartilharLink() {
   if (!minhaPosicao) {
     notificar("Posição ainda não disponível.");
     return;
@@ -760,7 +898,7 @@ btnCompartilhar.addEventListener("click", () => {
   } else {
     prompt("Copie o link:", link);
   }
-});
+}
 
 function atualizarBateria() {
   if (!navigator.getBattery) return;
@@ -781,57 +919,120 @@ btnCentralizar.addEventListener("click", () => {
   if (minhaPosicao) mapa.setView([minhaPosicao.lat, minhaPosicao.lng], 15);
 });
 
-navigator.geolocation.watchPosition((pos) => {
-  const { latitude, longitude, accuracy } = pos.coords;
-  minhaPosicao = { lat: latitude, lng: longitude, acuracia: accuracy };
-  statusPonto.classList.add("ligado");
-  statusPonto.classList.remove("desligado");
-  statusTexto.textContent = "Rastreando sua posição";
-  if (!meuMarcador) {
-    meuMarcador = L.marker([latitude, longitude], { icon: iconeEu }).addTo(mapa).bindPopup("<b>Você</b>");
-    meuCirculo = L.circle([latitude, longitude], { radius: accuracy, color: "#3949AB", fillOpacity: 0.15 }).addTo(mapa);
-    mapa.setView([latitude, longitude], 15);
-  } else {
-    meuMarcador.setLatLng([latitude, longitude]);
-    meuCirculo.setLatLng([latitude, longitude]);
-    meuCirculo.setRadius(accuracy);
-  }
+function iniciarApp() {
+  navigator.geolocation.watchPosition((pos) => {
+    const { latitude, longitude, accuracy } = pos.coords;
+    minhaPosicao = { lat: latitude, lng: longitude, acuracia: accuracy };
+    statusPonto.classList.add("ligado");
+    statusPonto.classList.remove("desligado");
+    statusTexto.textContent = "Rastreando sua posição";
+    if (!meuMarcador) {
+      meuMarcador = L.marker([latitude, longitude], { icon: iconeEu }).addTo(mapa).bindPopup("<b>Você</b>");
+      meuCirculo = L.circle([latitude, longitude], { radius: accuracy, color: "#3949AB", fillOpacity: 0.15 }).addTo(mapa);
+      mapa.setView([latitude, longitude], 15);
+    } else {
+      meuMarcador.setLatLng([latitude, longitude]);
+      meuCirculo.setLatLng([latitude, longitude]);
+      meuCirculo.setRadius(accuracy);
+    }
+    atualizarInterface();
+    registrarNoFirebase();
+    guardarHistorico();
+    verificarCercas();
+  }, (err) => {
+    statusTexto.textContent = err.code === 1 ? "Permissão negada — ative a localização" : "Erro ao obter localização";
+  }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+
+  setInterval(() => {
+    registrarNoFirebase();
+    enviarHistoricoFirebase();
+  }, 15000);
+
+  setInterval(atualizarBateria, 60000);
+
   atualizarInterface();
-  registrarNoFirebase();
-  guardarHistorico();
-  verificarCercas();
-}, (err) => {
-  statusTexto.textContent = err.code === 1 ? "Permissão negada — ative a localização" : "Erro ao obter localização";
-}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+  escutarFamilia();
+  escutarSos();
+  escutarChat();
+  escutarTarefas();
+  atualizarBateria();
+  btnInvisivel.classList.toggle("oculto-ativo", modoInvisivel);
 
-setInterval(() => {
-  registrarNoFirebase();
-  enviarHistoricoFirebase();
-}, 15000);
+  const params = new URLSearchParams(location.search);
+  const latLink = parseFloat(params.get("lat"));
+  const lngLink = parseFloat(params.get("lng"));
+  if (!isNaN(latLink) && !isNaN(lngLink)) {
+    mapa.setView([latLink, lngLink], 16);
+    L.marker([latLink, lngLink], { icon: iconeMembro })
+      .addTo(mapa)
+      .bindPopup("<b>Localização compartilhada</b>")
+      .openPopup();
+  }
 
-setInterval(atualizarBateria, 60000);
-
-atualizarInterface();
-escutarFamilia();
-escutarSos();
-escutarChat();
-atualizarBateria();
-btnInvisivel.classList.toggle("oculto-ativo", modoInvisivel);
-
-const params = new URLSearchParams(location.search);
-const latLink = parseFloat(params.get("lat"));
-const lngLink = parseFloat(params.get("lng"));
-if (!isNaN(latLink) && !isNaN(lngLink)) {
-  mapa.setView([latLink, lngLink], 16);
-  L.marker([latLink, lngLink], { icon: iconeMembro })
-    .addTo(mapa)
-    .bindPopup("<b>Localização compartilhada</b>")
-    .openPopup();
+  if (estaConfigurado() && localStorage.getItem("nomeFamiliar")) {
+    ligarHistoricoDe(localStorage.getItem("nomeFamiliar").replace(/[^a-zA-Z0-9-_]/g, "_"));
+  }
 }
 
-if (estaConfigurado() && localStorage.getItem("nomeFamiliar")) {
-  ligarHistoricoDe(localStorage.getItem("nomeFamiliar").replace(/[^a-zA-Z0-9-_]/g, "_"));
+const loginTela = document.getElementById("loginTela");
+const loginInfo = document.getElementById("loginInfo");
+const loginSenha = document.getElementById("loginSenha");
+const loginEntrar = document.getElementById("loginEntrar");
+const loginAviso = document.getElementById("loginAviso");
+
+let senhaFamilia = "";
+
+function verificarLogin() {
+  if (!estaConfigurado() || localStorage.getItem("token")) {
+    loginTela.style.display = "none";
+    iniciarApp();
+    return;
+  }
+  const db = abrirFirebase();
+  onValue(dbRef(db, "familia/config/senha"), (snap) => {
+    const v = snap.exists() ? String(snap.val()) : "";
+    senhaFamilia = v;
+    if (v) {
+      loginInfo.textContent = "Essa família tem senha. Digite para entrar:";
+      loginSenha.placeholder = "Senha da família";
+    } else {
+      loginInfo.textContent = "Ainda não há senha. Crie a senha da família:";
+      loginSenha.placeholder = "Crie uma senha";
+    }
+  });
+  loginTela.style.display = "flex";
+  loginSenha.focus();
 }
+
+loginEntrar.addEventListener("click", entrarFamilia);
+loginSenha.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") entrarFamilia();
+});
+
+function entrarFamilia() {
+  const senha = loginSenha.value.trim();
+  if (!senha) return;
+  if (!senhaFamilia) {
+    const db = abrirFirebase();
+    set(dbRef(db, "familia/config/senha"), senha)
+      .then(() => {
+        localStorage.setItem("token", senha);
+        loginTela.style.display = "none";
+        notificar("Senha da família criada!");
+        iniciarApp();
+      })
+      .catch(() => { loginAviso.textContent = "Erro ao salvar senha."; });
+  } else if (senha === senhaFamilia) {
+    localStorage.setItem("token", senha);
+    loginTela.style.display = "none";
+    iniciarApp();
+  } else {
+    loginAviso.textContent = "Senha errada. Tente de novo.";
+    loginSenha.value = "";
+  }
+}
+
+verificarLogin();
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});

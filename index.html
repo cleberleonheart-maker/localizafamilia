@@ -58,7 +58,10 @@
     background: var(--vermelho); border: 3px solid #fff; display: flex; align-items: center; justify-content: center;
   }
   .pin span { transform: rotate(45deg); font-size: 13px; }
-  .campo-nome { display: none; }
+  .campo-nome {
+    display: none; position: fixed; left: 50%; transform: translateX(-50%);
+    width: min(94%, 420px); z-index: 1100;
+  }
   .campo-nome input {
     width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
     color: var(--texto); border-radius: 10px; padding: 10px 12px; font-size: 14px;
@@ -889,7 +892,7 @@ function adicionarTarefa() {
   if (!texto) return;
   const nome = localStorage.getItem("nomeFamiliar");
   if (!nome) {
-    notificar("Digite seu nome no campo no topo do mapa primeiro.");
+    notificar("Digite seu nome no campo \"Seu nome\" que aparece na parte de baixo da tela.");
     campoNome.style.display = "block";
     return;
   }

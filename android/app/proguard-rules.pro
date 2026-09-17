@@ -1,0 +1,1 @@
+# Mantido por padrão — regras específicas ficam aqui quando o app crescer.

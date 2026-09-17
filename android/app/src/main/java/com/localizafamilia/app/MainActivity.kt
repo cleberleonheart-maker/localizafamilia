@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.GeolocationPermissions
 import android.webkit.WebChromeClient
@@ -25,6 +26,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        registrarErros()
         setContentView(R.layout.activity_main)
         prefs = getSharedPreferences("localizafamilia", MODE_PRIVATE)
 
@@ -123,6 +125,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun registrarErros() {
+        val padrao = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            try {
+                getSharedPreferences("localizafamilia", MODE_PRIVATE)
+                    .edit()
+                    .putString("ultimoErro", Log.getStackTraceString(throwable))
+                    .apply()
+            } catch (_: Exception) {
+            }
+            padrao?.uncaughtException(Thread.currentThread(), throwable)
+        }
+    }
+
     private fun temLocalizacaoPermitida(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED ||
@@ -192,6 +208,9 @@ class MainActivity : AppCompatActivity() {
         fun parar() {
             runOnUiThread { voz?.parar() }
         }
+
+        @JavascriptInterface
+        fun ultimoErro(): String = prefs.getString("ultimoErro", "") ?: ""
     }
 
     companion object {

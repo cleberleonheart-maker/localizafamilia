@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(APP_URL)
 
         pedirPermissoes()
+        AtualizarHelper(this).verificar(force = true)
     }
 
     override fun onResume() {

@@ -993,6 +993,14 @@ btnMic.addEventListener("click", () => {
 window.lfvoz = (t) => { processarComando(String(t || "").toLowerCase()); };
 window.lfMic = (on) => { micAtivo = !!on; btnMic.classList.toggle("ativo", micAtivo); };
 
+try {
+  const ultimoErro = window.AndroidMic && window.AndroidMic.ultimoErro();
+  if (ultimoErro && !localStorage.getItem("erroVisto")) {
+    localStorage.setItem("erroVisto", "1");
+    notificar("Antes o app fechou por: " + String(ultimoErro).slice(0, 300));
+  }
+} catch (e) {}
+
 function ligarMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {

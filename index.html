@@ -268,7 +268,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref as dbRef, serverTimestamp as fbServerTimestamp, set, update, push, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref as dbRef, serverTimestamp as fbServerTimestamp, set, update, push, remove, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const FIREBASE_CONFIGURADO = true;
 
@@ -738,6 +738,10 @@ document.getElementById("sosMapa").addEventListener("click", () => {
 
 document.getElementById("sosOk").addEventListener("click", () => {
   sosTela.style.display = "none";
+  if (estaConfigurado()) {
+    const db = abrirFirebase();
+    remove(dbRef(db, "sos/alerta")).catch(() => {});
+  }
 });
 
 btnSos.addEventListener("click", () => {

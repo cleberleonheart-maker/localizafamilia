@@ -94,6 +94,7 @@
   }
   button.btn-mic.ativo { background: var(--verde); animation: pulsar 1s infinite; }
   button.btn-mic:active { transform: scale(.92); }
+  body.painel-aberto button.btn-mic { display: none; }
   .item-familia .rota {
     background: transparent; border: 1px solid rgba(255,255,255,.25);
     color: var(--texto); padding: 4px 8px; font-size: 11px; border-radius: 8px;
@@ -338,6 +339,7 @@ btnFamilia.addEventListener("click", () => {
   listaFamilia.classList.toggle("visivel");
   painelLugares.classList.remove("visivel");
   campoNome.style.display = "none";
+  atualizarBotoesFlutuantes();
 });
 
 document.getElementById("btnApk").addEventListener("click", () => {
@@ -357,6 +359,7 @@ document.getElementById("btnLugar").addEventListener("click", () => {
   listaFamilia.classList.remove("visivel");
   campoNome.style.display = "none";
   renderizarLugares();
+  atualizarBotoesFlutuantes();
 });
 
 function salvarLugares() {
@@ -369,6 +372,15 @@ function notificar(msg) {
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
   clearTimeout(alerta._t);
   alerta._t = setTimeout(() => alerta.classList.remove("visivel"), 9000);
+}
+
+function atualizarBotoesFlutuantes() {
+  const aberto =
+    listaFamilia.classList.contains("visivel") ||
+    painelLugares.classList.contains("visivel") ||
+    painelTarefas.classList.contains("visivel") ||
+    painelChat.classList.contains("visivel");
+  document.body.classList.toggle("painel-aberto", aberto);
 }
 
 function renderizarLugares() {
@@ -798,6 +810,7 @@ btnChat.addEventListener("click", () => {
   painelLugares.classList.remove("visivel");
   campoNome.style.display = "none";
   renderizarChat();
+  atualizarBotoesFlutuantes();
 });
 
 function enviarChat() {
@@ -863,6 +876,7 @@ btnTarefas.addEventListener("click", () => {
   painelChat.classList.remove("visivel");
   campoNome.style.display = "none";
   renderizarTarefas();
+  atualizarBotoesFlutuantes();
 });
 
 tarefaEnviar.addEventListener("click", adicionarTarefa);

@@ -342,10 +342,7 @@ function abrirFirebase() {
 
 btnFamilia.addEventListener("click", () => {
   if (!estaConfigurado()) return;
-  listaFamilia.classList.toggle("visivel");
-  painelLugares.classList.remove("visivel");
-  campoNome.style.display = "none";
-  atualizarBotoesFlutuantes();
+  alternarPainel(listaFamilia);
 });
 
 document.getElementById("btnApk").addEventListener("click", () => {
@@ -361,11 +358,8 @@ let lugares = JSON.parse(localStorage.getItem("lugares") || "[]");
 const estadoCerca = new Map();
 
 document.getElementById("btnLugar").addEventListener("click", () => {
-  painelLugares.classList.toggle("visivel");
-  listaFamilia.classList.remove("visivel");
-  campoNome.style.display = "none";
+  alternarPainel(painelLugares);
   renderizarLugares();
-  atualizarBotoesFlutuantes();
 });
 
 function salvarLugares() {
@@ -387,6 +381,15 @@ function atualizarBotoesFlutuantes() {
     painelTarefas.classList.contains("visivel") ||
     painelChat.classList.contains("visivel");
   document.body.classList.toggle("painel-aberto", aberto);
+}
+
+function alternarPainel(painel) {
+  [listaFamilia, painelLugares, painelTarefas, painelChat].forEach((p) => {
+    if (p !== painel) p.classList.remove("visivel");
+  });
+  painel.classList.toggle("visivel");
+  campoNome.style.display = "none";
+  atualizarBotoesFlutuantes();
 }
 
 function renderizarLugares() {
@@ -816,12 +819,8 @@ chatTexto.addEventListener("keydown", (e) => {
 });
 
 btnChat.addEventListener("click", () => {
-  painelChat.classList.toggle("visivel");
-  listaFamilia.classList.remove("visivel");
-  painelLugares.classList.remove("visivel");
-  campoNome.style.display = "none";
+  alternarPainel(painelChat);
   renderizarChat();
-  atualizarBotoesFlutuantes();
 });
 
 function enviarChat() {
@@ -881,13 +880,8 @@ const tarefaEnviar = document.getElementById("tarefaEnviar");
 let tarefas = [];
 
 btnTarefas.addEventListener("click", () => {
-  painelTarefas.classList.toggle("visivel");
-  listaFamilia.classList.remove("visivel");
-  painelLugares.classList.remove("visivel");
-  painelChat.classList.remove("visivel");
-  campoNome.style.display = "none";
+  alternarPainel(painelTarefas);
   renderizarTarefas();
-  atualizarBotoesFlutuantes();
 });
 
 tarefaEnviar.addEventListener("click", adicionarTarefa);

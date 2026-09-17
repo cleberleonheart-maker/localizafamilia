@@ -59,9 +59,11 @@
   }
   .pin span { transform: rotate(45deg); font-size: 13px; }
   .campo-nome {
-    display: none; position: fixed; left: 50%; transform: translateX(-50%);
-    width: min(94%, 420px); z-index: 1100;
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(94%, 420px); z-index: 1200; background: var(--cartao); border-radius: 16px;
+    padding: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.5);
   }
+  .campo-nome .campo-nome-titulo { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
   .campo-nome input {
     width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
     color: var(--texto); border-radius: 10px; padding: 10px 12px; font-size: 14px;
@@ -260,8 +262,9 @@
 
 <div class="lista" id="listaFamilia"></div>
 
-<div class="campo-nome" id="campoNome" style="bottom:86px">
-  <input id="inputNome" placeholder="Seu nome (ex: Mamãe)">
+<div class="campo-nome" id="campoNome">
+  <div class="campo-nome-titulo">Qual é o seu nome? 👋</div>
+  <input id="inputNome" placeholder="Digite aqui (ex: Mamãe)">
 </div>
 
 <div class="painel rodape">
@@ -458,7 +461,12 @@ inputNome.addEventListener("change", () => {
     localStorage.setItem("nomeFamiliar", nome);
     campoNome.style.display = "none";
     registrarNoFirebase();
+    notificar(`Nome salvo: ${nome}`);
   }
+});
+
+inputNome.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") inputNome.blur();
 });
 
 function atualizarInterface() {

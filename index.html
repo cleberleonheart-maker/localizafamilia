@@ -146,6 +146,16 @@
   }
   .login-titulo { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
   .login-info { font-size: 13px; opacity: .8; margin-bottom: 16px; }
+  .login-modos {
+    display: flex; gap: 8px; margin-bottom: 12px;
+    background: #0F1526; border-radius: 10px; padding: 4px;
+  }
+  .login-modo {
+    flex: 1; border-radius: 8px; padding: 8px 4px; font-size: 13px;
+    background: transparent; color: rgba(255,255,255,.55); border: none;
+  }
+  .login-modo.ativo { background: var(--verde); color: #fff; font-weight: 700; }
+  .login-modo:disabled { opacity: .4; }
   .login-bx input {
     width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
     color: var(--texto); border-radius: 10px; padding: 11px 12px; font-size: 15px;
@@ -222,8 +232,12 @@
   <div class="login-bx">
     <div class="login-titulo">🔒 Localiza Família</div>
     <div class="login-info" id="loginInfo">Verificando...</div>
+    <div class="login-modos" id="loginModos">
+      <button class="login-modo ativo" id="loginModoEntrar">Entrar</button>
+      <button class="login-modo" id="loginModoCriar">Criar senha</button>
+    </div>
     <input type="password" id="loginSenha" placeholder="Senha da família" autocomplete="off">
-    <button id="loginEntrar">Entrar</button>
+    <button id="loginEntrar">Continuar</button>
     <div class="login-aviso" id="loginAviso"></div>
   </div>
 </div>
@@ -926,9 +940,17 @@ function falar(texto) {
 }
 
 btnMic.addEventListener("click", () => {
+  if (window.AndroidMic) {
+    if (micAtivo) window.AndroidMic.parar();
+    else window.AndroidMic.ouvir();
+    return;
+  }
   if (micAtivo) desligarMic();
   else ligarMic();
 });
+
+window.lfvoz = (t) => { processarComando(String(t || "").toLowerCase()); };
+window.lfMic = (on) => { micAtivo = !!on; btnMic.classList.toggle("ativo", micAtivo); };
 
 function ligarMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1151,8 +1173,26 @@ const loginInfo = document.getElementById("loginInfo");
 const loginSenha = document.getElementById("loginSenha");
 const loginEntrar = document.getElementById("loginEntrar");
 const loginAviso = document.getElementById("loginAviso");
+const loginModoEntrar = document.getElementById("loginModoEntrar");
+const loginModoCriar = document.getElementById("loginModoCriar");
 
 let senhaFamilia = "";
+let modoLogin = "";
+let senhaVerificada = false;
+
+function selecionarModo(modo) {
+  modoLogin = modo;
+  loginModoEntrar.classList.toggle("ativo", modo === "entrar");
+  loginModoCriar.classList.toggle("ativo", modo === "criar");
+  if (modo === "criar") {
+    loginInfo.textContent = "Ainda não há senha. Crie a senha da família:";
+    loginSenha.placeholder = "Crie uma senha";
+  } else {
+    loginInfo.textContent = "Digite a senha da família:";
+    loginSenha.placeholder = "Senha da família";
+  }
+  loginAviso.textContent = "";
+}
 
 function verificarLogin() {
   if (!estaConfigurado() || localStorage.getItem("token")) {
@@ -1161,30 +1201,41 @@ function verificarLogin() {
     return;
   }
   const db = abrirFirebase();
-  onValue(dbRef(db, "familia/config/senha"), (snap) => {
-    const v = snap.exists() ? String(snap.val()) : "";
-    senhaFamilia = v;
-    if (v) {
-      loginInfo.textContent = "Essa família tem senha. Digite para entrar:";
-      loginSenha.placeholder = "Senha da família";
-    } else {
-      loginInfo.textContent = "Ainda não há senha. Crie a senha da família:";
-      loginSenha.placeholder = "Crie uma senha";
+  onValue(dbRef(db, "familia/config/senha"),
+    (snap) => {
+      senhaVerificada = true;
+      senhaFamilia = snap.exists() ? String(snap.val()) : "";
+      loginModoCriar.disabled = !!senhaFamilia;
+      loginModoEntrar.disabled = !senhaFamilia;
+      selecionarModo(senhaFamilia ? "entrar" : "criar");
+      loginTela.style.display = "flex";
+      loginSenha.focus();
+    },
+    () => {
+      senhaVerificada = false;
+      selecionarModo("entrar");
+      loginTela.style.display = "flex";
+      loginAviso.textContent = "Não consegui verificar a senha. Confira as regras do Firebase.";
+      loginSenha.focus();
     }
-  });
-  loginTela.style.display = "flex";
-  loginSenha.focus();
+  );
 }
 
 loginEntrar.addEventListener("click", entrarFamilia);
 loginSenha.addEventListener("keydown", (e) => {
   if (e.key === "Enter") entrarFamilia();
 });
+loginModoEntrar.addEventListener("click", () => selecionarModo("entrar"));
+loginModoCriar.addEventListener("click", () => selecionarModo("criar"));
 
 function entrarFamilia() {
   const senha = loginSenha.value.trim();
   if (!senha) return;
-  if (!senhaFamilia) {
+  if (modoLogin === "criar") {
+    if (senhaVerificada && senhaFamilia) {
+      loginAviso.textContent = 'Essa família já tem senha. Use "Entrar".';
+      return;
+    }
     const db = abrirFirebase();
     set(dbRef(db, "familia/config/senha"), senha)
       .then(() => {
@@ -1194,13 +1245,20 @@ function entrarFamilia() {
         iniciarApp();
       })
       .catch(() => { loginAviso.textContent = "Erro ao salvar senha."; });
-  } else if (senha === senhaFamilia) {
-    localStorage.setItem("token", senha);
-    loginTela.style.display = "none";
-    iniciarApp();
   } else {
-    loginAviso.textContent = "Senha errada. Tente de novo.";
-    loginSenha.value = "";
+    if (!senhaVerificada) {
+      loginAviso.textContent = "Aguarde a verificação da senha...";
+      return;
+    }
+    if (senha === senhaFamilia) {
+      localStorage.setItem("token", senha);
+      loginTela.style.display = "none";
+      iniciarApp();
+    } else {
+      loginAviso.textContent = "Senha errada. Tente de novo.";
+      loginSenha.value = "";
+      loginSenha.focus();
+    }
   }
 }
 

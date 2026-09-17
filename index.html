@@ -686,6 +686,7 @@ const sosNome = document.getElementById("sosNome");
 const sosInfo = document.getElementById("sosInfo");
 let ultimoSos = null;
 let sosMarcador = null;
+let ultimoSosEnviado = null;
 
 function tocarAlarme() {
   if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
@@ -747,12 +748,14 @@ btnSos.addEventListener("click", () => {
   }
   const nome = localStorage.getItem("nomeFamiliar") || "Familiar";
   const db = abrirFirebase();
-  set(dbRef(db, "sos/alerta"), {
+  const dados = {
     nome,
     lat: minhaPosicao ? minhaPosicao.lat : 0,
     lng: minhaPosicao ? minhaPosicao.lng : 0,
     t: Date.now()
-  }).catch(() => notificar("Falha ao enviar SOS"));
+  };
+  set(dbRef(db, "sos/alerta"), dados).catch(() => notificar("Falha ao enviar SOS"));
+  ultimoSosEnviado = dados;
   notificar("⚠️ SOS enviado para a família");
 });
 
@@ -760,7 +763,13 @@ function escutarSos() {
   if (!estaConfigurado()) return;
   const db = abrirFirebase();
   onValue(dbRef(db, "sos/alerta"), (snap) => {
-    if (snap.exists()) mostrarSos(snap.val());
+    if (!snap.exists()) return;
+    const dados = snap.val();
+    if (ultimoSosEnviado && dados.nome === ultimoSosEnviado.nome &&
+        typeof dados.t === "number" && Math.abs(dados.t - ultimoSosEnviado.t) < 15000) {
+      return;
+    }
+    mostrarSos(dados);
   });
 }
 
@@ -996,12 +1005,14 @@ function desligarMic() {
 function processarComando(t) {
   if (/(?:^| )sos|socorro|emergencia|perigo/.test(t) && !/sair do sos/.test(t)) {
     const db = abrirFirebase();
-    set(dbRef(db, "sos/alerta"), {
+    const dados = {
       nome: localStorage.getItem("nomeFamiliar") || "Familiar",
       lat: minhaPosicao ? minhaPosicao.lat : 0,
       lng: minhaPosicao ? minhaPosicao.lng : 0,
       t: Date.now()
-    }).catch(() => {});
+    };
+    set(dbRef(db, "sos/alerta"), dados).catch(() => {});
+    ultimoSosEnviado = dados;
     falar("SOS enviado para a família!");
     return;
   }

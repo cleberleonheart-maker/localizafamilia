@@ -1,0 +1,42 @@
+name: Build APK nativo
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compilar APK de release
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalizaFamilia-nativo
+          path: android/app/build/outputs/apk/release/*.apk
+
+      - name: Criar release com o APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nativo-build-${{ github.run_number }}
+          name: Localiza Família nativo build ${{ github.run_number }}
+          generate_release_notes: false
+          files: android/app/build/outputs/apk/release/*.apk

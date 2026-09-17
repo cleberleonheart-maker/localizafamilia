@@ -76,6 +76,7 @@
     <div class="subtitulo" id="statusTexto">Aguardando permissão de localização...</div>
   </div>
   <button id="btnFamilia" class="desativado">Família</button>
+  <button id="btnApk" title="Baixar versão Android (APK)">📦 APK</button>
 </div>
 
 <div class="lista" id="listaFamilia"></div>
@@ -160,6 +161,10 @@ function abrirFirebase() {
 btnFamilia.addEventListener("click", () => {
   if (!estaConfigurado()) return;
   listaFamilia.classList.toggle("visivel");
+});
+
+document.getElementById("btnApk").addEventListener("click", () => {
+  window.open("LocalizaFamilia-v1.0.apk", "_blank");
 });
 
 inputNome.addEventListener("change", () => {

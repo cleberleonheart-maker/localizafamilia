@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -211,6 +212,18 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun ultimoErro(): String = prefs.getString("ultimoErro", "") ?: ""
+
+        @JavascriptInterface
+        fun abrirLink(url: String) {
+            if (!url.startsWith("http")) return
+            runOnUiThread {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    startActivity(intent)
+                } catch (_: Exception) {
+                }
+            }
+        }
     }
 
     companion object {

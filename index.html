@@ -170,6 +170,7 @@
   .login-bx button { width: 100%; }
   .login-aviso { color: var(--vermelho); font-size: 13px; margin-top: 10px; min-height: 18px; }
   .painel.tarefas { bottom: 86px; background: #232C47; }
+  .painel.contatos { bottom: 86px; background: #232C47; }
   .item-tarefa {
     display: flex; align-items: flex-start; gap: 8px; padding: 9px 0;
     border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px;
@@ -202,6 +203,7 @@
   <button id="btnChat" title="Chat em família">💬</button>
   <button id="btnTarefas" title="Tarefas da família">📋</button>
   <button id="btnInvisivel" title="Modo invisível" class="desativado">🌙</button>
+  <button id="btnContatos" title="Contatos de emergência">📞</button>
   <button id="btnApk" title="Baixar versão Android (APK)">📦</button>
 </div>
 
@@ -231,6 +233,19 @@
   <div class="tarefa-input">
     <input id="tarefaTexto" placeholder="Nova tarefa (ex: comprar pão)..." maxlength="200">
     <button id="tarefaEnviar">Add</button>
+  </div>
+</div>
+
+<div class="painel contatos" id="painelContatos">
+  <div style="font-weight:700;margin-bottom:8px">Contatos de emergência 📞</div>
+  <div style="font-size:12px;opacity:.75;margin-bottom:8px">Ao apertar SOS, enviamos sua localização por WhatsApp para esses contatos.</div>
+  <div id="listaContatos"></div>
+  <div class="tarefa-input" style="margin-bottom:8px">
+    <input id="contatoNome" placeholder="Nome (ex: Vó Maria)" maxlength="40">
+  </div>
+  <div class="tarefa-input">
+    <input id="contatoTelefone" placeholder="WhatsApp com DDI (ex: 5511987654321)" inputmode="numeric" maxlength="20">
+    <button id="contatoAdd">Add</button>
   </div>
 </div>
 
@@ -379,12 +394,13 @@ function atualizarBotoesFlutuantes() {
     listaFamilia.classList.contains("visivel") ||
     painelLugares.classList.contains("visivel") ||
     painelTarefas.classList.contains("visivel") ||
+    painelContatos.classList.contains("visivel") ||
     painelChat.classList.contains("visivel");
   document.body.classList.toggle("painel-aberto", aberto);
 }
 
 function alternarPainel(painel) {
-  [listaFamilia, painelLugares, painelTarefas, painelChat].forEach((p) => {
+  [listaFamilia, painelLugares, painelTarefas, painelContatos, painelChat].forEach((p) => {
     if (p !== painel) p.classList.remove("visivel");
   });
   painel.classList.toggle("visivel");
@@ -714,6 +730,115 @@ let ultimoSos = null;
 let sosMarcador = null;
 let ultimoSosEnviado = null;
 
+const painelContatos = document.getElementById("painelContatos");
+const listaContatos = document.getElementById("listaContatos");
+const contatoNome = document.getElementById("contatoNome");
+const contatoTelefone = document.getElementById("contatoTelefone");
+const contatoAdd = document.getElementById("contatoAdd");
+
+let contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
+
+function salvarContatos() {
+  localStorage.setItem("contatosEmergencia", JSON.stringify(contatos));
+}
+
+document.getElementById("btnContatos").addEventListener("click", () => {
+  alternarPainel(painelContatos);
+  renderizarContatos();
+});
+
+contatoAdd.addEventListener("click", adicionarContato);
+contatoNome.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") contatoTelefone.focus();
+});
+contatoTelefone.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") adicionarContato();
+});
+
+function adicionarContato() {
+  const nome = contatoNome.value.trim();
+  const telefone = contatoTelefone.value.replace(/[^\d+]/g, "");
+  if (!nome || !telefone) {
+    notificar("Preencha nome e telefone (com DDI) do contato.");
+    return;
+  }
+  contatos.push({ nome, telefone });
+  salvarContatos();
+  contatoNome.value = "";
+  contatoTelefone.value = "";
+  renderizarContatos();
+  notificar(`Contato de emergência "${nome}" adicionado!`);
+}
+
+function renderizarContatos() {
+  if (contatos.length === 0) {
+    listaContatos.innerHTML = "<div style='font-size:12px;opacity:.7;padding:6px 0'>Nenhum contato ainda. Adicione quem deve ser avisado no SOS.</div>";
+    return;
+  }
+  listaContatos.innerHTML = contatos.map((c, i) => `
+    <div class="item-lugar">
+      <div style="flex:1">
+        <div class="nome">📞 ${c.nome}</div>
+        <div class="linha">${c.telefone}</div>
+      </div>
+      <button class="remover" data-i="${i}">✕</button>
+    </div>`).join("");
+  listaContatos.querySelectorAll(".remover").forEach((b) => {
+    b.addEventListener("click", () => {
+      contatos.splice(parseInt(b.dataset.i, 10), 1);
+      salvarContatos();
+      renderizarContatos();
+    });
+  });
+}
+
+function telefoneComDDI(t) {
+  const d = String(t).replace(/[^\d]/g, "");
+  return d.length >= 12 ? d : "55" + d;
+}
+
+function linkDaMinhaPosicao() {
+  return `${location.origin}${location.pathname}?lat=${minhaPosicao.lat.toFixed(6)}&lng=${minhaPosicao.lng.toFixed(6)}`;
+}
+
+function abrirWhatsApp(numero, mensagem) {
+  const url = "https://wa.me/" + numero + "?text=" + encodeURIComponent(mensagem);
+  if (window.AndroidMic && window.AndroidMic.abrirLink) {
+    window.AndroidMic.abrirLink(url);
+    return;
+  }
+  const nova = window.open(url, "_blank");
+  if (!nova) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+}
+
+function enviarSosWhatsApp() {
+  if (contatos.length === 0) {
+    notificar("SOS enviado! Cadastre contatos no botão 📞 para avisar por WhatsApp.");
+    return;
+  }
+  const nome = localStorage.getItem("nomeFamiliar") || "Familiar";
+  const base = minhaPosicao
+    ? "Abra o link para ver no mapa: " + linkDaMinhaPosicao()
+    : "Localização ainda não disponível.";
+  const msg = "⚠️ SOS!\n" + nome + " pediu ajuda agora.\n" + base;
+  let atraso = 0;
+  contatos.forEach((c) => {
+    setTimeout(() => {
+      abrirWhatsApp(telefoneComDDI(c.telefone), msg);
+    }, atraso);
+    atraso += 900;
+  });
+  notificar(`Abrindo WhatsApp para ${contatos.length} contato(s)...`);
+}
+
 function tocarAlarme() {
   if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
   try {
@@ -776,6 +901,11 @@ btnSos.addEventListener("click", () => {
     notificar("SOS precisa do Firebase configurado.");
     return;
   }
+  enviarSosAgora();
+});
+
+function enviarSosAgora() {
+  if (!estaConfigurado()) { notificar("SOS precisa do Firebase configurado."); return; }
   const nome = localStorage.getItem("nomeFamiliar") || "Familiar";
   const db = abrirFirebase();
   const dados = {
@@ -787,7 +917,10 @@ btnSos.addEventListener("click", () => {
   set(dbRef(db, "sos/alerta"), dados).catch(() => notificar("Falha ao enviar SOS"));
   ultimoSosEnviado = dados;
   notificar("⚠️ SOS enviado para a família");
-});
+  enviarSosWhatsApp();
+}
+
+window.sosRapido = enviarSosAgora;
 
 function escutarSos() {
   if (!estaConfigurado()) return;
@@ -953,7 +1086,7 @@ function compartilharLink() {
     notificar("Posição ainda não disponível.");
     return;
   }
-  const link = `${location.origin}${location.pathname}?lat=${minhaPosicao.lat.toFixed(6)}&lng=${minhaPosicao.lng.toFixed(6)}`;
+  const link = linkDaMinhaPosicao();
   const msg = `Estou aqui: ${link}`;
   if (navigator.share) {
     navigator.share({ title: "Minha localização", text: msg, url: link }).catch(() => {});
@@ -1044,15 +1177,7 @@ function desligarMic() {
 
 function processarComando(t) {
   if (/(?:^| )sos|socorro|emergencia|perigo/.test(t) && !/sair do sos/.test(t)) {
-    const db = abrirFirebase();
-    const dados = {
-      nome: localStorage.getItem("nomeFamiliar") || "Familiar",
-      lat: minhaPosicao ? minhaPosicao.lat : 0,
-      lng: minhaPosicao ? minhaPosicao.lng : 0,
-      t: Date.now()
-    };
-    set(dbRef(db, "sos/alerta"), dados).catch(() => {});
-    ultimoSosEnviado = dados;
+    enviarSosAgora();
     falar("SOS enviado para a família!");
     return;
   }

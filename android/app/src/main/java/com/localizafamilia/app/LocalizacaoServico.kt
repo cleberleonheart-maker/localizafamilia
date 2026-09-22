@@ -22,7 +22,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -46,6 +49,15 @@ class LocalizacaoServico : Service() {
             criarCanal()
             startForeground(NOTIFICACAO_ID, notificacao())
             iniciarAtualizacoes()
+            scope.launch {
+                while (isActive) {
+                    try {
+                        verificarAvisosFamilia()
+                    } catch (_: Exception) {
+                    }
+                    delay(INTERVALO_VERIFICACAO_FAMILIA_MS)
+                }
+            }
         } catch (_: Exception) {
             stopSelf()
         }
@@ -128,12 +140,107 @@ class LocalizacaoServico : Service() {
 
     private fun criarCanal() {
         if (Build.VERSION.SDK_INT >= 26) {
+            val nm = getSystemService(NotificationManager::class.java)
             val canal = NotificationChannel(
                 CANAL_ID,
                 "Rastreio da família",
                 NotificationManager.IMPORTANCE_LOW
             )
-            getSystemService(NotificationManager::class.java).createNotificationChannel(canal)
+            nm.createNotificationChannel(canal)
+            val canalAviso = NotificationChannel(
+                CANAL_AVISO_ID,
+                "Avisos importantes",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            canalAviso.description = "Avisos de família parada e bateria fraca"
+            nm.createNotificationChannel(canalAviso)
+        }
+    }
+
+    private fun notificacoesPermitidas(): Boolean {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return false
+        }
+        return true
+    }
+
+    private fun verificarAvisosFamilia() {
+        if (!notificacoesPermitidas()) return
+        val meuEnc = prefs.getString("nomeEnc", "") ?: ""
+        val corpo = try {
+            val conn = URL("$FIREBASE_DB/familia.json?orderBy=%22%24key%22&limitToLast=100")
+                .openConnection() as HttpURLConnection
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            val texto = conn.inputStream.bufferedReader().use { it.readText() }
+            conn.disconnect()
+            texto
+        } catch (_: Exception) {
+            return
+        }
+        if (corpo.isBlank() || corpo == "null") return
+
+        val agora = System.currentTimeMillis()
+        try {
+            val raiz = JSONObject(corpo)
+            val chaves = raiz.keys()
+            while (chaves.hasNext()) {
+                val chave = chaves.next()
+                if (chave == meuEnc) continue
+                val m = raiz.optJSONObject(chave) ?: continue
+                if (m.optBoolean("invisivel", false)) continue
+
+                val atualizado = m.optLong("atualizado", 0L)
+                val nome = m.optString("nome", chave)
+                if (atualizado > 0 && agora - atualizado > LIMITE_PARADA_MS) {
+                    avisarSeNecessario("avisoParada_" + chave, COOLDOWN_PARADA_MS) {
+                        "⚠️ $nome parou de enviar posição (há ${((agora - atualizado) / 60000).coerceAtLeast(1)} min)"
+                    }
+                }
+
+                val bateria = m.opt("bateria").let { b ->
+                    when (b) {
+                        is Number -> b.toDouble()
+                        is String -> b.toDoubleOrNull() ?: -1.0
+                        else -> -1.0
+                    }
+                }
+                if (bateria >= 0 && bateria < LIMITE_BATERIA_PERCENT) {
+                    avisarSeNecessario("avisoBateria_" + chave, COOLDOWN_BATERIA_MS) {
+                        "🔋 $nome está com pouca bateria (${bateria.toInt()}%)"
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun avisarSeNecessario(chave: String, cooldownMs: Long, texto: () -> String) {
+        val ultimo = prefs.getLong(chave, 0L)
+        val agora = System.currentTimeMillis()
+        if (agora - ultimo < cooldownMs) return
+        prefs.edit().putLong(chave, agora).apply()
+        try {
+            val abrir = Intent(this, MainActivity::class.java)
+            val pendente = PendingIntent.getActivity(
+                this, 0, abrir,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notif = NotificationCompat.Builder(this, CANAL_AVISO_ID)
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setContentTitle("Localiza Família")
+                .setContentText(texto())
+                .setStyle(NotificationCompat.BigTextStyle().bigText(texto()))
+                .setContentIntent(pendente)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .build()
+            getSystemService(NotificationManager::class.java).notify(AVISO_ID, notif)
+        } catch (_: Exception) {
         }
     }
 
@@ -154,11 +261,18 @@ class LocalizacaoServico : Service() {
 
     companion object {
         private const val CANAL_ID = "canal_rastreio"
+        private const val CANAL_AVISO_ID = "canal_aviso"
         private const val NOTIFICACAO_ID = 1
+        private const val AVISO_ID = 3
         private const val FIREBASE_DB = "https://localizafamilia-default-rtdb.firebaseio.com"
         private const val INTERVALO_MS = 20_000L
         private const val INTERVALO_RAPIDO_MS = 10_000L
         private const val INTERVALO_MAXIMO_MS = 40_000L
         private const val INTERVALO_MINIMO_SERVICO_MS = 15_000L
+        private const val INTERVALO_VERIFICACAO_FAMILIA_MS = 60_000L
+        private const val LIMITE_PARADA_MS = 6 * 60 * 1000L
+        private const val COOLDOWN_PARADA_MS = 15 * 60 * 1000L
+        private const val COOLDOWN_BATERIA_MS = 2 * 60 * 60 * 1000L
+        private const val LIMITE_BATERIA_PERCENT = 20.0
     }
 }

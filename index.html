@@ -478,13 +478,53 @@ function verificarCercas() {
   });
 }
 
+const LIMITE_PARADA_MS = 6 * 60000;
+const COOLDOWN_PARADA_MS = 15 * 60000;
+const COOLDOWN_BATERIA_MS = 120 * 60000;
+const LIMITE_BATERIA_PERCENT = 20;
+const estadoAviso = new Map();
+
+function verificarAvisosAbertos() {
+  if (!estaConfigurado() || membros.size === 0) return;
+  const agora = Date.now();
+  const meuNome = localStorage.getItem("nomeFamiliar") || "";
+  membros.forEach((m) => {
+    if (m.invisivel || m.nome === meuNome) return;
+    const atualizado = typeof m.atualizado === "number" ? m.atualizado : 0;
+    if (atualizado > 0 && agora - atualizado > LIMITE_PARADA_MS) {
+      const k = "parada|" + m.nome;
+      const ult = estadoAviso.get(k) || 0;
+      if (agora - ult > COOLDOWN_PARADA_MS) {
+        estadoAviso.set(k, agora);
+        notificar("⚠️ " + m.nome + " parou de enviar posição");
+      }
+    }
+    const bateria = parseFloat(m.bateria);
+    if (!isNaN(bateria) && bateria < LIMITE_BATERIA_PERCENT) {
+      const k = "bateria|" + m.nome;
+      const ult = estadoAviso.get(k) || 0;
+      if (agora - ult > COOLDOWN_BATERIA_MS) {
+        estadoAviso.set(k, agora);
+        notificar("🔋 " + m.nome + " está com pouca bateria (" + Math.round(bateria) + "%)");
+      }
+    }
+  });
+}
+
+setInterval(verificarAvisosAbertos, 60000);
+
 inputNome.addEventListener("change", () => {
   const nome = inputNome.value.trim();
   if (nome.length > 0) {
-    localStorage.setItem("nomeFamiliar", nome);
-    campoNome.style.display = "none";
-    registrarNoFirebase();
-    notificar(`Nome salvo: ${nome}`);
+    const atual = localStorage.getItem("nomeFamiliar") || "";
+    const aplicar = () => {
+      localStorage.setItem("nomeFamiliar", nome);
+      campoNome.style.display = "none";
+      registrarNoFirebase();
+      notificar(`Nome salvo: ${nome}`);
+    };
+    if (atual && atual !== nome) pedirPinERodar(aplicar);
+    else aplicar();
   }
 });
 
@@ -557,6 +597,7 @@ function escutarFamilia() {
     atualizarInterface();
     renderizarFamilia();
     verificarCercas();
+    verificarAvisosAbertos();
   });
 }
 
@@ -598,7 +639,8 @@ function renderizarFamilia() {
           ${s.icone} ${s.nome}
         </button>`).join("")}
       <button data-missao="compartilhar">📤 Aqui</button>
-      <button data-missao="sair">🔒 Sair</button>
+      <button data-missao="controle">🔒 Controle</button>
+      <button data-missao="sair">🚪 Sair</button>
     </div>`);
   if (minhaPosicao) {
     html.push(`
@@ -628,7 +670,8 @@ function renderizarFamilia() {
   listaFamilia.querySelectorAll("[data-missao]").forEach((b) => {
     b.addEventListener("click", () => {
       if (b.dataset.missao === "compartilhar") compartilharLink();
-      if (b.dataset.missao === "sair") sairFamilia();
+      if (b.dataset.missao === "controle") configurarPin();
+      if (b.dataset.missao === "sair") pedirPinERodar(sairFamilia);
     });
   });
 }
@@ -997,6 +1040,14 @@ function escutarChat() {
 }
 
 btnInvisivel.addEventListener("click", () => {
+  if (modoInvisivel) {
+    alternarInvisivel();
+  } else {
+    pedirPinERodar(alternarInvisivel);
+  }
+});
+
+let alternarInvisivel = () => {
   modoInvisivel = !modoInvisivel;
   localStorage.setItem("invisivel", modoInvisivel ? "1" : "0");
   btnInvisivel.classList.toggle("oculto-ativo", modoInvisivel);
@@ -1006,7 +1057,52 @@ btnInvisivel.addEventListener("click", () => {
   }
   notificar(modoInvisivel ? "Modo invisível ativo 🌙" : "Modo invisível desativado");
   renderizarFamilia();
-});
+};
+
+function pedirPinERodar(aoPassar) {
+  const Android = window.AndroidMic;
+  if (Android && Android.temPin && Android.temPin()) {
+    const pin = prompt("Digite o PIN de controle:");
+    if (pin === null) return;
+    if (Android.verificarPin(pin)) {
+      aoPassar();
+    } else {
+      notificar("PIN incorreto.");
+    }
+    return;
+  }
+  aoPassar();
+}
+
+function configurarPin() {
+  const Android = window.AndroidMic;
+  if (!Android || !Android.temPin) {
+    notificar("O controle por PIN está disponível apenas no app Android.");
+    return;
+  }
+  if (Android.temPin()) {
+    const atual = prompt("PIN atual:");
+    if (atual === null) return;
+    if (!Android.verificarPin(atual)) {
+      notificar("PIN atual incorreto.");
+      return;
+    }
+    const novo = prompt("Novo PIN (números). Deixe vazio para remover:");
+    if (novo === null) return;
+    Android.definirPin(novo);
+    notificar(novo ? "PIN atualizado 🔒" : "PIN removido.");
+  } else {
+    const p1 = prompt("Defina o PIN de controle (apenas números):");
+    if (p1 === null) return;
+    const p2 = prompt("Confirme o PIN:");
+    if (!p1 || p1 !== p2) {
+      notificar("PINs diferentes ou vazio.");
+      return;
+    }
+    Android.definirPin(p1);
+    notificar("PIN definido 🔒 Protege: modo invisível, trocar de nome e sair da família.");
+  }
+}
 
 const btnTarefas = document.getElementById("btnTarefas");
 const painelTarefas = document.getElementById("painelTarefas");

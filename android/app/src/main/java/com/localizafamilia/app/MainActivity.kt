@@ -1,6 +1,7 @@
 package com.localizafamilia.app
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -10,16 +11,20 @@ import android.os.Bundle
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.GeolocationPermissions
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.RenderProcessGoneDetail
+import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.security.MessageDigest
 
 class MainActivity : AppCompatActivity() {
 
@@ -55,6 +60,53 @@ class MainActivity : AppCompatActivity() {
                     callback: GeolocationPermissions.Callback?
                 ) {
                     callback?.invoke(origin, true, false)
+                }
+
+                override fun onJsAlert(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    result: JsResult?
+                ) {
+                    if (isFinishing) {
+                        result?.cancel()
+                        return
+                    }
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle(view?.title ?: url ?: "Localiza Família")
+                        .setMessage(message)
+                        .setPositiveButton("OK") { _, _ -> result?.confirm() }
+                        .setOnCancelListener { result?.cancel() }
+                        .show()
+                }
+
+                override fun onJsPrompt(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    defaultValue: String?,
+                    result: JsPromptResult?
+                ) {
+                    if (isFinishing) {
+                        result?.cancel()
+                        return
+                    }
+                    val input = EditText(this@MainActivity)
+                    if (!defaultValue.isNullOrEmpty()) input.setText(defaultValue)
+                    val textoMsg = message ?: ""
+                    if (textoMsg.contains("PIN") || textoMsg.contains("SENHA") || textoMsg.contains("senha")) {
+                        input.inputType =
+                            android.text.InputType.TYPE_CLASS_NUMBER or
+                            android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+                    }
+                    val dlg = AlertDialog.Builder(this@MainActivity)
+                        .setTitle(message)
+                        .setView(input)
+                        .setPositiveButton("OK") { _, _ -> result?.confirm(input.text.toString()) }
+                        .setNegativeButton("Cancelar") { _, _ -> result?.cancel() }
+                        .setOnCancelListener { result?.cancel() }
+                        .create()
+                    dlg.show()
                 }
             }
             webView.webViewClient = object : WebViewClient() {
@@ -256,6 +308,31 @@ class MainActivity : AppCompatActivity() {
         return sb.toString().ifEmpty { "sem dados de diagnóstico ainda" }
     }
 
+    private fun hashPin(pin: String): String {
+        return try {
+            val digest = MessageDigest.getInstance("SHA-256")
+                .digest(pin.toByteArray(Charsets.UTF_8))
+            digest.joinToString("") { "%02x".format(it) }
+        } catch (_: Exception) {
+            pin
+        }
+    }
+
+    fun temPin(): Boolean = prefs.getString("pinPais", "")?.isNotEmpty() == true
+
+    fun verificarPin(pin: String): Boolean {
+        val salvo = prefs.getString("pinPais", "")
+        return !salvo.isNullOrEmpty() && salvo == hashPin(pin)
+    }
+
+    fun definirPin(pin: String): Boolean {
+        val limpo = pin.trim()
+        prefs.edit()
+            .putString("pinPais", if (limpo.isEmpty()) "" else hashPin(limpo))
+            .apply()
+        return limpo.isNotEmpty()
+    }
+
     private inner class Bridge {
         @JavascriptInterface
         fun ouvir() {
@@ -293,6 +370,15 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun diag(): String = diagAtual()
+
+        @JavascriptInterface
+        fun temPin(): Boolean = this@MainActivity.temPin()
+
+        @JavascriptInterface
+        fun verificarPin(pin: String) = this@MainActivity.verificarPin(pin)
+
+        @JavascriptInterface
+        fun definirPin(pin: String): Boolean = this@MainActivity.definirPin(pin)
 
         @JavascriptInterface
         fun abrirLink(url: String) {

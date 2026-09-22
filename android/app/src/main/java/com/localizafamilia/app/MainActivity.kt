@@ -45,10 +45,9 @@ class MainActivity : AppCompatActivity() {
             webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
             webView.settings.setGeolocationEnabled(true)
             webView.settings.setGeolocationDatabasePath(applicationContext.filesDir.path)
-            webView.settings.setRendererPriorityPolicy(
-                WebSettings.RENDERER_PRIORITY_BOUND,
-                true
-            )
+            if (Build.VERSION.SDK_INT >= 26) {
+                webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, true)
+            }
             webView.addJavascriptInterface(Bridge(), "AndroidMic")
             webView.webChromeClient = object : WebChromeClient() {
                 override fun onGeolocationPermissionsShowPrompt(
@@ -59,7 +58,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             webView.webViewClient = object : WebViewClient() {
-                override fun onPageStarted(view: WebView?, url: String?) {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                     registrar("pagina_comecou")
                 }
 

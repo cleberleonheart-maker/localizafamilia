@@ -18,6 +18,8 @@ import android.webkit.RenderProcessGoneDetail
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.io.PrintWriter
+import java.io.StringWriter
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,80 +28,119 @@ class MainActivity : AppCompatActivity() {
     private var voz: VozHelper? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        registrarErros()
-        setContentView(R.layout.activity_main)
         prefs = getSharedPreferences("localizafamilia", MODE_PRIVATE)
+        registrar("inicio")
+        try {
+            super.onCreate(savedInstanceState)
+            registrar("super_create")
+            registrarErros()
+            setContentView(R.layout.activity_main)
+            registrar("set_content")
 
-        webView = findViewById(R.id.webView)
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.databaseEnabled = true
-        webView.settings.mediaPlaybackRequiresUserGesture = false
-        webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-        webView.settings.setGeolocationEnabled(true)
-        webView.settings.setGeolocationDatabasePath(applicationContext.filesDir.path)
-        webView.addJavascriptInterface(Bridge(), "AndroidMic")
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onGeolocationPermissionsShowPrompt(
-                origin: String?,
-                callback: GeolocationPermissions.Callback?
-            ) {
-                callback?.invoke(origin, true, false)
-            }
-        }
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                injetarVoz()
-                sincronizarNome()
-            }
-
-            override fun onRenderProcessGone(
-                view: WebView?,
-                detail: RenderProcessGoneDetail?
-            ): Boolean {
-                prefs.edit()
-                    .putLong("renderCrash", System.currentTimeMillis())
-                    .putBoolean("renderCrashFatal", detail?.didCrash() == true)
-                    .apply()
-                runOnUiThread {
-                    try {
-                        view?.loadUrl("about:blank")
-                        view?.loadUrl(APP_URL)
-                    } catch (_: Exception) {
-                    }
+            webView = findViewById(R.id.webView)
+            webView.settings.javaScriptEnabled = true
+            webView.settings.domStorageEnabled = true
+            webView.settings.databaseEnabled = true
+            webView.settings.mediaPlaybackRequiresUserGesture = false
+            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            webView.settings.setGeolocationEnabled(true)
+            webView.settings.setGeolocationDatabasePath(applicationContext.filesDir.path)
+            webView.settings.setRendererPriorityPolicy(
+                WebSettings.RENDERER_PRIORITY_BOUND,
+                true
+            )
+            webView.addJavascriptInterface(Bridge(), "AndroidMic")
+            webView.webChromeClient = object : WebChromeClient() {
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?,
+                    callback: GeolocationPermissions.Callback?
+                ) {
+                    callback?.invoke(origin, true, false)
                 }
-                return true
             }
-        }
-        webView.loadUrl(APP_URL)
+            webView.webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?) {
+                    registrar("pagina_comecou")
+                }
 
-        pedirPermissoes()
-        AtualizarHelper(this).verificar(force = true)
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    registrar("pagina_pronta")
+                    injetarVoz()
+                    sincronizarNome()
+                }
+
+                override fun onRenderProcessGone(
+                    view: WebView?,
+                    detail: RenderProcessGoneDetail?
+                ): Boolean {
+                    val fatal = detail?.didCrash() == true
+                    registrar("render_morreu_fatal=$fatal")
+                    prefs.edit().putLong("renderCrash", System.currentTimeMillis()).apply()
+                    runOnUiThread {
+                        try {
+                            reiniciarTela()
+                        } catch (_: Exception) {
+                            finishAndRemoveTask()
+                        }
+                    }
+                    return true
+                }
+            }
+            webView.loadUrl(APP_URL)
+            registrar("pagina_pedida")
+
+            pedirPermissoes()
+            AtualizarHelper(this).verificar(force = true)
+            registrar("fim_create")
+        } catch (t: Throwable) {
+            registrar("ERRO_create:" + trace(t))
+        }
     }
 
     override fun onResume() {
-        super.onResume()
-        webView.onResume()
-        if (temLocalizacaoPermitida() && prefs.getString("nomeEnc", "")?.isNotEmpty() == true) {
-            iniciarServico()
+        registrar("resume")
+        try {
+            super.onResume()
+            webView.onResume()
+            if (temLocalizacaoPermitida() && prefs.getString("nomeEnc", "")?.isNotEmpty() == true) {
+                iniciarServico()
+            }
+            registrar("resume_ok")
+        } catch (t: Throwable) {
+            registrar("ERRO_resume:" + trace(t))
         }
     }
 
     override fun onPause() {
-        webView.onPause()
+        try {
+            webView.onPause()
+        } catch (_: Throwable) {
+        }
         super.onPause()
     }
 
     override fun onDestroy() {
-        voz?.parar()
-        webView.destroy()
+        try {
+            voz?.parar()
+            webView.destroy()
+        } catch (_: Throwable) {
+        }
         super.onDestroy()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        webView.saveState(outState)
+        try {
+            super.onSaveInstanceState(outState)
+            webView.saveState(outState)
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun reiniciarTela() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        finish()
     }
 
     private fun injetarVoz() {
@@ -140,6 +181,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun registrar(passo: String) {
+        try {
+            getSharedPreferences("localizafamilia", MODE_PRIVATE)
+                .edit()
+                .putLong("init_" + passo, System.currentTimeMillis())
+                .apply()
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun trace(t: Throwable): String {
+        return try {
+            val sw = StringWriter()
+            t.printStackTrace(PrintWriter(sw))
+            sw.toString()
+        } catch (_: Throwable) {
+            t.javaClass.simpleName
+        }
+    }
+
     private fun temLocalizacaoPermitida(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED ||
@@ -174,8 +235,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun iniciarServico() {
-        val intent = Intent(this, LocalizacaoServico::class.java)
-        ContextCompat.startForegroundService(this, intent)
+        try {
+            val intent = Intent(this, LocalizacaoServico::class.java)
+            ContextCompat.startForegroundService(this, intent)
+            registrar("servico_iniciado")
+        } catch (t: Throwable) {
+            registrar("ERRO_servico:" + trace(t))
+        }
+    }
+
+    private fun diagAtual(): String {
+        val sb = StringBuilder()
+        val e = prefs.getString("ultimoErro", "") ?: ""
+        if (e.isNotEmpty()) sb.append("ultimoErro: ").append(e.take(400)).append('\n')
+        val rc = prefs.getLong("renderCrash", 0L)
+        if (rc > 0) sb.append("renderCrashed em: ").append(rc).append('\n')
+        val passos = prefs.all
+            .filterKeys { it.startsWith("init_") }
+            .toSortedMap()
+        for ((k, v) in passos) sb.append(k).append('=').append(v).append('\n')
+        return sb.toString().ifEmpty { "sem dados de diagnóstico ainda" }
     }
 
     private inner class Bridge {
@@ -212,6 +291,9 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun ultimoErro(): String = prefs.getString("ultimoErro", "") ?: ""
+
+        @JavascriptInterface
+        fun diag(): String = diagAtual()
 
         @JavascriptInterface
         fun abrirLink(url: String) {

@@ -361,7 +361,11 @@ btnFamilia.addEventListener("click", () => {
 });
 
 document.getElementById("btnApk").addEventListener("click", () => {
-  window.open("LocalizaFamilia-v1.0.apk", "_blank");
+  if (window.AndroidMic && window.AndroidMic.abrirLink) {
+    window.AndroidMic.abrirLink("https://github.com/cleberleonheart-maker/localizafamilia/releases/latest/download/app-release.apk");
+  } else {
+    window.open("https://github.com/cleberleonheart-maker/localizafamilia/releases/latest/download/app-release.apk", "_blank");
+  }
 });
 
 const painelLugares = document.getElementById("painelLugares");
@@ -1127,10 +1131,14 @@ window.lfvoz = (t) => { processarComando(String(t || "").toLowerCase()); };
 window.lfMic = (on) => { micAtivo = !!on; btnMic.classList.toggle("ativo", micAtivo); };
 
 try {
-  const ultimoErro = window.AndroidMic && window.AndroidMic.ultimoErro();
-  if (ultimoErro && !localStorage.getItem("erroVisto")) {
-    localStorage.setItem("erroVisto", "1");
-    notificar("Antes o app fechou por: " + String(ultimoErro).slice(0, 300));
+  const Android = window.AndroidMic;
+  const ultimoErro = (Android && Android.ultimoErro && Android.ultimoErro()) || "";
+  const diag = (Android && Android.diag && Android.diag()) || "";
+  const chave = "diagVisto";
+  const antigo = localStorage.getItem(chave) || "";
+  localStorage.setItem(chave, diag);
+  if ((ultimoErro || diag.startsWith("ERRO") || diag.indexOf("render_morreu") >= 0) && antigo !== diag) {
+    notificar("Diagnóstico: " + String(diag).slice(0, 350) + (ultimoErro ? " | ultimoErro: " + String(ultimoErro).slice(0, 200) : ""));
   }
 } catch (e) {}
 

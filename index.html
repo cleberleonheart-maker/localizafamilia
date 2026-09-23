@@ -288,19 +288,29 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref as dbRef, serverTimestamp as fbServerTimestamp, set, update, push, remove, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-const FIREBASE_CONFIGURADO = true;
+const FIREBASE_CONFIGURADO = !!(window.LF_CONFIG && window.LF_CONFIG.apiKey && !window.LF_CONFIG.apiKey.startsWith("SUA-"));
 
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBYIgyojy12YtAGiQG2T5XGb2EsgIbR_Rk",
-  authDomain: "localizafamilia-df735.firebaseapp.com",
-  databaseURL: "https://localizafamilia-df735-default-rtdb.firebaseio.com",
-  projectId: "localizafamilia-df735"
-};
+const FIREBASE_CONFIG = window.LF_CONFIG || {};
+
+function passarConfigNativa() {
+  try {
+    if (FIREBASE_CONFIGURADO && window.AndroidMic && window.AndroidMic.configurar) {
+      window.AndroidMic.configurar(
+        FIREBASE_CONFIG.databaseURL,
+        FIREBASE_CONFIG.apiKey,
+        FIREBASE_CONFIG.authDomain,
+        FIREBASE_CONFIG.projectId
+      );
+    }
+  } catch (_) {}
+}
+passarConfigNativa();
 
 const MINUTO = 60000;
 

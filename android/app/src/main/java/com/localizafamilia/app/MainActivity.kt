@@ -319,7 +319,9 @@ class MainActivity : AppCompatActivity() {
         Thread {
             try {
                 val chave = prefs.getString("nomeEnc", "") ?: "sem_nome"
-                val url = URL("https://localizafamilia-df735-default-rtdb.firebaseio.com/_diag/$chave.json?auth=${FirebaseAuthHelper.token(prefs)}")
+                val db = prefs.getString("fbDbUrl", "")?.takeIf { it.isNotEmpty() }
+                    ?: "https://localizafamilia-df735-default-rtdb.firebaseio.com"
+                val url = URL("$db/_diag/$chave.json?auth=${FirebaseAuthHelper.token(prefs)}")
                 val corpo =
                     "{\"$tipo\":${org.json.JSONObject.quote(detalhe)},\"data\":${System.currentTimeMillis()}}"
                 val conn = url.openConnection() as HttpURLConnection
@@ -422,6 +424,19 @@ class MainActivity : AppCompatActivity() {
                 } catch (_: Exception) {
                 }
             }
+        }
+
+        @JavascriptInterface
+        fun configurar(dbUrl: String, apiKey: String, authDomain: String, projectId: String) {
+            val urlLimpo = dbUrl.trim()
+            val chave = apiKey.trim()
+            if (urlLimpo.isEmpty() || chave.isEmpty()) return
+            prefs.edit()
+                .putString("fbDbUrl", urlLimpo)
+                .putString("fbApiKey", chave)
+                .putString("fbAuthDomain", authDomain.trim())
+                .putString("fbProjectId", projectId.trim())
+                .apply()
         }
     }
 

@@ -8,11 +8,9 @@ import java.net.URL
 
 object FirebaseAuthHelper {
 
-    private const val API_KEY = "AIzaSyBYIgyojy12YtAGiQG2T5XGb2EsgIbR_Rk"
-    private const val URL_SIGNUP =
-        "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$API_KEY"
-    private const val URL_TOKEN =
-        "https://securetoken.googleapis.com/v1/token?key=$API_KEY"
+    private const val URL_SIGNUP = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=%s"
+    private const val URL_TOKEN = "https://securetoken.googleapis.com/v1/token?key=%s"
+    private const val FALLBACK_API_KEY = "AIzaSyBYIgyojy12YtAGiQG2T5XGb2EsgIbR_Rk"
 
     private const val PREF_REFRESH = "fbRefreshToken"
     private const val PREF_UID = "fbUid"
@@ -20,6 +18,9 @@ object FirebaseAuthHelper {
     private const val PREF_EXP = "fbExp"
 
     private val lock = Any()
+
+    fun apiKey(prefs: SharedPreferences): String =
+        prefs.getString("fbApiKey", "")?.takeIf { it.isNotEmpty() } ?: FALLBACK_API_KEY
 
     fun token(prefs: SharedPreferences): String {
         synchronized(lock) {
@@ -32,7 +33,7 @@ object FirebaseAuthHelper {
             val refresh = prefs.getString(PREF_REFRESH, "") ?: ""
             if (refresh.isNotEmpty()) {
                 try {
-                    val json = post(URL_TOKEN, JSONObject()
+                    val json = post(String.format(URL_TOKEN, apiKey(prefs)), JSONObject()
                         .put("grant_type", "refresh_token")
                         .put("refresh_token", refresh).toString())
                     if (json.has("id_token")) {
@@ -44,7 +45,7 @@ object FirebaseAuthHelper {
                 }
             }
 
-            val json = post(URL_SIGNUP, JSONObject().put("returnSecureToken", true).toString())
+            val json = post(String.format(URL_SIGNUP, apiKey(prefs)), JSONObject().put("returnSecureToken", true).toString())
             if (!json.has("idToken")) {
                 throw IOException("Falha ao criar conta anônima")
             }

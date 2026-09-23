@@ -14,25 +14,43 @@ jobs:
     env:
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
       RETENTION_DAYS: 30
-      DRY_RUN: 0
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detectar databaseURL do config.js
-        id: db
+      - name: Detectar projeto e banco do config.js
+        id: cfg
         run: |
+          PID=$(sed -n 's/.*projectId: *"\([^"]*\)".*/\1/p' config.js)
           DB=$(sed -n 's/.*databaseURL: *"\([^"]*\)".*/\1/p' config.js)
+          echo "pid=$PID" >> "$GITHUB_OUTPUT"
           echo "db=$DB" >> "$GITHUB_OUTPUT"
-          echo "Detectado: $DB"
+          echo "Projeto: $PID | Banco: $DB"
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      - name: Instalar Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Baixar histórico
+        if: env.FIREBASE_TOKEN != ''
+        run: |
+          firebase database:get /historico \
+            --project "${{ steps.cfg.outputs.pid }}" \
+            --token "$FIREBASE_TOKEN" \
+            --output /tmp/hist.json
+
       - name: Rodar limpeza
         if: env.FIREBASE_TOKEN != ''
-        run: node scripts/limpar-historico.mjs
-        env:
-          DATABASE_URL: ${{ steps.db.outputs.db }}
-          RETENTION_DAYS: ${{ env.RETENTION_DAYS }}
-          DRY_RUN: ${{ env.DRY_RUN }}
+        run: |
+          node scripts/limpar-historico.mjs /tmp/hist.json | tee /tmp/remover.txt
+          while read -r p; do
+            case "$p" in
+              /*)
+                echo "REMOVE $p"
+                firebase database:remove --project "${{ steps.cfg.outputs.pid }}" \
+                  --token "$FIREBASE_TOKEN" --yes "$p" || true
+                ;;
+            esac
+          done < /tmp/remover.txt

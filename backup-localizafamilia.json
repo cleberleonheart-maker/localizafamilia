@@ -1,0 +1,187 @@
+{
+    "familia": {
+        "Familiar": {
+            "atualizado": 1789799544291,
+            "bateria": 20,
+            "lat": -30.0028767,
+            "lng": -51.038444,
+            "nome": "Familiar"
+        },
+        "Vilson": {
+            "atualizado": 1789662302780,
+            "bateria": 73,
+            "lat": -30.002915,
+            "lng": -51.03843,
+            "nome": "Vilson"
+        },
+        "cleber": {
+            "atualizado": 1790185855460,
+            "bateria": 1,
+            "diag": {
+                "aberta": "ultimoErro: java.lang.RuntimeException: Unable to create service com.localizafamilia.app.LocalizacaoServico: java.lang.NullPointerException: Attempt to invoke virtual method 'android.content.Context android.content.Context.getApplicationContext()' on a null object reference\n\tat android.app.ActivityThread.handleCreateService(ActivityThread.java:5792)\n\tat android.app.ActivityThread.-$$Nest$mhandleCreateService(\ninit_fim_create=1790182754961\ninit_inicio=1790183232018\ninit_pagina_comecou=1790182745069\ninit_pagina_pedida=1790183232764\ninit_pagina_pronta=1790182749102\ninit_resume=1790182754966\ninit_resume_ok=1790182754978\ninit_servico_iniciado=1790182754978\ninit_set_content=1790183232712\ninit_super_create=1790183232037\n",
+                "data": 1790183232781,
+                "excecao": "java.lang.RuntimeException: Unable to create service com.localizafamilia.app.LocalizacaoServico: java.lang.NullPointerException: Attempt to invoke virtual method 'android.content.Context android.content.Context.getApplicationContext()' on a null object reference\n\tat android.app.ActivityThread.handleCreateService(ActivityThread.java:5792)\n\tat android.app.ActivityThread.-$$Nest$mhandleCreateService(ActivityThread.java:0)\n\tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2877)\n\tat android.os.Handler.dispatchMessage(Handler.java:114)\n\tat android.os.Looper.loopOnce(Looper.java:274)\n\tat android.os.Looper.loop(Looper.java:369)\n\tat android.app.ActivityThread.main(ActivityThread.java:10090)\n\tat java.lang.reflect.Method.invoke(Native Method)\n\tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:616)\n\tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1137)\nCaused by: java.lang.NullPointerException: Attempt to invoke virtual method 'android.content.Context android.content.Context.getApplicationContext()' on a null object reference\n\tat android.content.ContextWrapper.getApplicationContext(ContextWrapper.java:163)\n\tat com.google.android.gms.common.api.GoogleApi.<init>(com.google.android.gms:play-services-base@@18.4.0:7)\n\tat com.google.android.gms.common.api.GoogleApi.<init>(com.google.android.gms:play-services-base@@18.4.0:21)\n\tat com.google.android.gms.internal.location.zzbi.<init>(com.google.android.gms:play-services-location@@21.2.0:2)\n\tat com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(com.google.android.gms:play-services-location@@21.2.0:2)\n\tat com.localizafamilia.app.LocalizacaoServico.<init>(LocalizacaoServico.kt:36)\n\tat java.lang.Class.newInstance(Native Method)\n\tat android.app.AppComponentFactory.instantiateService(AppComponentFactory.java:129)\n\tat androidx.core.app.CoreComponentFactory.instantiateService(CoreComponentFactory.java:74)\n\tat android.app.ActivityThread.handleCreateService(Act"
+            },
+            "invisivel": false,
+            "lat": -30.0028936,
+            "lng": -51.0384813,
+            "nome": "cleber"
+        },
+        "config": {
+            "senha": "28546371"
+        },
+        "diag": {
+            "aberta": "init_inicio=1790182744024\ninit_pagina_pedida=1790182744600\ninit_set_content=1790182744548\ninit_super_create=1790182744041\n",
+            "data": 1790182744678
+        }
+    },
+    "historico": {
+        "Vilson": {
+            "1789662272165": {
+                "lat": -30.002918,
+                "lng": -51.0384493,
+                "t": 1789662272165
+            },
+            "1789662287164": {
+                "lat": -30.0029281,
+                "lng": -51.0384251,
+                "t": 1789662287164
+            },
+            "1789662302170": {
+                "lat": -30.002915,
+                "lng": -51.03843,
+                "t": 1789662302170
+            }
+        },
+        "cleber": {
+            "1789619092099": {
+                "lat": -30.00286,
+                "lng": -51.0384617,
+                "t": 1789619092099
+            },
+            "1789619107094": {
+                "lat": -30.0028683,
+                "lng": -51.0384483,
+                "t": 1789619107094
+            },
+            "1789619122102": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619122102
+            },
+            "1789619137099": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619137099
+            },
+            "1789619152099": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619152099
+            },
+            "1789619167099": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619167099
+            },
+            "1789619182099": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619182099
+            },
+            "1789619197101": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619197101
+            },
+            "1789619213108": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619213108
+            },
+            "1789619228094": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619228094
+            },
+            "1789619243094": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619243094
+            },
+            "1789619258094": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619258094
+            },
+            "1789619374037": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619374038
+            },
+            "1789619377095": {
+                "lat": -30.0028767,
+                "lng": -51.03845,
+                "t": 1789619377095
+            },
+            "1789652221820": {
+                "lat": -30.0029667,
+                "lng": -51.03853,
+                "t": 1789652221820
+            },
+            "1789652236823": {
+                "lat": -30.0029667,
+                "lng": -51.03853,
+                "t": 1789652236824
+            },
+            "1789652251820": {
+                "lat": -30.0029667,
+                "lng": -51.03853,
+                "t": 1789652251821
+            },
+            "1789652266822": {
+                "lat": -30.0029667,
+                "lng": -51.03853,
+                "t": 1789652266822
+            },
+            "1790183248859": {
+                "lat": -30.0028295,
+                "lng": -51.0384468,
+                "t": 1790183248859
+            },
+            "1790183308723": {
+                "lat": -30.0028281,
+                "lng": -51.038433,
+                "t": 1790183308723
+            }
+        }
+    },
+    "tarefas": {
+        "-P1hTRHhDBJZ6Isimxnj": {
+            "criadoPor": "teste",
+            "feito": true,
+            "feitoPor": "",
+            "t": 1700000000000,
+            "texto": "teste doce"
+        },
+        "-P1hWcnNq9GUJILJHYco": {
+            "criadoPor": "cleber",
+            "feito": true,
+            "feitoPor": "",
+            "t": 1789617671660,
+            "texto": "oii"
+        },
+        "-P1hb49t-M_39r82kM86": {
+            "criadoPor": "cleber",
+            "feito": false,
+            "t": 1789619098232,
+            "texto": "Comprei pao"
+        },
+        "-P1hbWBK4ng2hxzMvi0p": {
+            "criadoPor": "cleber",
+            "feito": false,
+            "t": 1789619213350,
+            "texto": "oi"
+        }
+    }
+}

@@ -1,0 +1,42 @@
+name: Deploy site (GitHub Pages)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'index.html'
+      - 'config.js'
+      - 'sw.js'
+      - 'manifest.json'
+      - 'icon.svg'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Montar site estatico
+        run: |
+          mkdir -p site
+          cp index.html config.js sw.js manifest.json icon.svg site/
+          touch site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - uses: actions/deploy-pages@v4

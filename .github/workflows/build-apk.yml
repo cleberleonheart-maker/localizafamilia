@@ -6,6 +6,7 @@ on:
     paths:
       - 'android/**'
       - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write

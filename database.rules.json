@@ -23,6 +23,7 @@
       }
     },
     "historico": {
+      ".read": true,
       "$chave": {
         "$ts": {
           ".write": true
@@ -30,11 +31,19 @@
       }
     },
     "chat": {
+      ".read": true,
       "$msg": {
         ".write": true
       }
     },
+    "tarefas": {
+      ".read": true,
+      "$tarefa": {
+        ".write": true
+      }
+    },
     "sos": {
+      ".read": true,
       "$vetor": {
         ".write": true
       }

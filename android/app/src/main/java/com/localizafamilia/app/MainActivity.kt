@@ -24,6 +24,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.net.HttpURLConnection
+import java.net.URL
 import java.security.MessageDigest
 
 class MainActivity : AppCompatActivity() {
@@ -144,6 +146,7 @@ class MainActivity : AppCompatActivity() {
 
             pedirPermissoes()
             AtualizarHelper(this).verificar(force = true)
+            enviarDiagFirebase("aberta", diagAtual().take(2000))
             registrar("fim_create")
         } catch (t: Throwable) {
             registrar("ERRO_create:" + trace(t))
@@ -224,10 +227,12 @@ class MainActivity : AppCompatActivity() {
         val padrao = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
             try {
+                val stack = Log.getStackTraceString(throwable)
                 getSharedPreferences("localizafamilia", MODE_PRIVATE)
                     .edit()
-                    .putString("ultimoErro", Log.getStackTraceString(throwable))
+                    .putString("ultimoErro", stack)
                     .apply()
+                enviarDiagFirebase("excecao", stack.take(2000))
             } catch (_: Exception) {
             }
             padrao?.uncaughtException(Thread.currentThread(), throwable)
@@ -308,6 +313,25 @@ class MainActivity : AppCompatActivity() {
             .toSortedMap()
         for ((k, v) in passos) sb.append(k).append('=').append(v).append('\n')
         return sb.toString().ifEmpty { "sem dados de diagnóstico ainda" }
+    }
+
+    private fun enviarDiagFirebase(tipo: String, detalhe: String) {
+        Thread {
+            try {
+                val chave = prefs.getString("nomeEnc", "") ?: "sem_nome"
+                val url = URL("https://localizafamilia-default-rtdb.firebaseio.com/familia/$chave/diag.json")
+                val corpo =
+                    "{\"$tipo\":${org.json.JSONObject.quote(detalhe)},\"data\":${System.currentTimeMillis()}}"
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "PATCH"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+                conn.outputStream.use { it.write(corpo.toByteArray(Charsets.UTF_8)) }
+                conn.inputStream.close()
+                conn.disconnect()
+            } catch (_: Exception) {
+            }
+        }.start()
     }
 
     private fun hashPin(pin: String): String {

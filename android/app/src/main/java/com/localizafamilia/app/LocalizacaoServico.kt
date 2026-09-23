@@ -33,7 +33,7 @@ class LocalizacaoServico : Service() {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val prefs by lazy { getSharedPreferences("localizafamilia", MODE_PRIVATE) }
-    private val fused = LocationServices.getFusedLocationProviderClient(this)
+    private val fused by lazy { LocationServices.getFusedLocationProviderClient(this) }
     private var ultimoEnvio = 0L
 
     private val callback = object : LocationCallback() {

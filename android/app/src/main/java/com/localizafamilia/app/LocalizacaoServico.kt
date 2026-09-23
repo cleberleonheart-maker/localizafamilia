@@ -59,7 +59,6 @@ class LocalizacaoServico : Service() {
                 }
             }
         } catch (_: Exception) {
-            stopSelf()
         }
         return START_STICKY
     }
@@ -71,12 +70,15 @@ class LocalizacaoServico : Service() {
             PackageManager.PERMISSION_GRANTED
         if (!ok) return
 
+        val bateria = bateria()
+        val intervalo = if (bateria >= 0 && bateria < LIMITE_BATERIA_PERCENT.toInt()) INTERVALO_MS_ECONOMIA else INTERVALO_MS
+
         val request = LocationRequest.Builder(
             Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-            INTERVALO_MS
+            intervalo
         )
-            .setMinUpdateIntervalMillis(INTERVALO_RAPIDO_MS)
-            .setMaxUpdateDelayMillis(INTERVALO_MAXIMO_MS)
+            .setMinUpdateIntervalMillis(if (bateria >= 0 && bateria < LIMITE_BATERIA_PERCENT.toInt()) INTERVALO_RAPIDO_ECONOMIA else INTERVALO_RAPIDO_MS)
+            .setMaxUpdateDelayMillis(if (bateria >= 0 && bateria < LIMITE_BATERIA_PERCENT.toInt()) INTERVALO_MAXIMO_ECONOMIA else INTERVALO_MAXIMO_MS)
             .build()
 
         try {
@@ -268,6 +270,9 @@ class LocalizacaoServico : Service() {
         private const val INTERVALO_MS = 20_000L
         private const val INTERVALO_RAPIDO_MS = 10_000L
         private const val INTERVALO_MAXIMO_MS = 40_000L
+        private const val INTERVALO_MS_ECONOMIA = 60_000L
+        private const val INTERVALO_RAPIDO_ECONOMIA = 30_000L
+        private const val INTERVALO_MAXIMO_ECONOMIA = 120_000L
         private const val INTERVALO_MINIMO_SERVICO_MS = 15_000L
         private const val INTERVALO_VERIFICACAO_FAMILIA_MS = 60_000L
         private const val LIMITE_PARADA_MS = 6 * 60 * 1000L

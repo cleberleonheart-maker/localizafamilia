@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "_diag": {
+      ".read": false,
+      "$device": {
+        "$tipo": {
+          ".write": "newData.hasChildren(['data'])"
+        }
+      }
+    },
+    "familia": {
+      ".read": true,
+      "config": {
+        "senha": {
+          ".write": "!data.exists() || data.val() == ''"
+        }
+      },
+      "$membro": {
+        "diag": { ".read": false, ".write": false },
+        "$campo": {
+          ".write": true
+        }
+      }
+    },
+    "historico": {
+      "$chave": {
+        "$ts": {
+          ".write": true
+        }
+      }
+    },
+    "chat": {
+      "$msg": {
+        ".write": true
+      }
+    },
+    "sos": {
+      "$vetor": {
+        ".write": true
+      }
+    }
+  }
+}

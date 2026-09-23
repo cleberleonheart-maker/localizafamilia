@@ -319,7 +319,7 @@ class MainActivity : AppCompatActivity() {
         Thread {
             try {
                 val chave = prefs.getString("nomeEnc", "") ?: "sem_nome"
-                val url = URL("https://localizafamilia-default-rtdb.firebaseio.com/familia/$chave/diag.json")
+                val url = URL("https://localizafamilia-default-rtdb.firebaseio.com/_diag/$chave.json")
                 val corpo =
                     "{\"$tipo\":${org.json.JSONObject.quote(detalhe)},\"data\":${System.currentTimeMillis()}}"
                 val conn = url.openConnection() as HttpURLConnection
@@ -336,8 +336,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun hashPin(pin: String): String {
         return try {
+            var salt = prefs.getString("pinSalt", "") ?: ""
+            if (salt.isEmpty()) {
+                salt = java.util.UUID.randomUUID().toString()
+                prefs.edit().putString("pinSalt", salt).apply()
+            }
+            val msg = pin + salt
             val digest = MessageDigest.getInstance("SHA-256")
-                .digest(pin.toByteArray(Charsets.UTF_8))
+                .digest(msg.toByteArray(Charsets.UTF_8))
             digest.joinToString("") { "%02x".format(it) }
         } catch (_: Exception) {
             pin

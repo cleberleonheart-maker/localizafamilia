@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -28,7 +28,7 @@ jobs:
           ./gradlew :app:assembleRelease -PversionCode=${{ github.run_number }} -PversionName=1.${{ github.run_number }} --no-daemon
 
       - name: Guardar APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: LocalizaFamilia-nativo
           path: android/app/build/outputs/apk/release/*.apk

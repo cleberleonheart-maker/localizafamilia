@@ -266,7 +266,7 @@ class LocalizacaoServico : Service() {
         private const val CANAL_AVISO_ID = "canal_aviso"
         private const val NOTIFICACAO_ID = 1
         private const val AVISO_ID = 3
-        private const val FIREBASE_DB = "https://localizafamilia-default-rtdb.firebaseio.com"
+        private const val FIREBASE_DB = "https://localizafamilia-df735-default-rtdb.firebaseio.com"
         private const val INTERVALO_MS = 20_000L
         private const val INTERVALO_RAPIDO_MS = 10_000L
         private const val INTERVALO_MAXIMO_MS = 40_000L

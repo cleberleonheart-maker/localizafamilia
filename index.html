@@ -291,6 +291,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref as dbRef, serverTimestamp as fbServerTimestamp, set, update, push, remove, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const FIREBASE_CONFIGURADO = true;
 
@@ -350,9 +351,21 @@ function estaConfigurado() {
   return FIREBASE_CONFIGURADO && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("SUA-");
 }
 
+let _app = null;
+let _auth = null;
+
+function appFirebase() {
+  if (!_app) _app = initializeApp(FIREBASE_CONFIG);
+  return _app;
+}
+
+function authFirebase() {
+  if (!_auth) _auth = getAuth(appFirebase());
+  return _auth;
+}
+
 function abrirFirebase() {
-  const app = initializeApp(FIREBASE_CONFIG);
-  return getDatabase(app);
+  return getDatabase(appFirebase());
 }
 
 btnFamilia.addEventListener("click", () => {
@@ -1542,7 +1555,28 @@ function entrarFamilia() {
   }
 }
 
-verificarLogin();
+function iniciarAuth() {
+  if (!estaConfigurado()) {
+    verificarLogin();
+    return;
+  }
+  const auth = authFirebase();
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      verificarLogin();
+      return;
+    }
+    signInAnonymously(auth)
+      .then(() => {})
+      .catch((e) => {
+        loginInfo.textContent = "Falha ao entrar no Firebase: " + (e && e.message ? e.message : "verifique se o login anônimo está habilitado.");
+        loginAviso.textContent = "Habilite Authentication > Anonymous no console do Firebase.";
+        loginTela.style.display = "flex";
+      });
+  });
+}
+
+iniciarAuth();
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});

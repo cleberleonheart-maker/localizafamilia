@@ -4,48 +4,48 @@
       ".read": false,
       "$device": {
         "$tipo": {
-          ".write": "newData.hasChildren(['data'])"
+          ".write": "auth != null && newData.hasChildren(['data'])"
         }
       }
     },
     "familia": {
-      ".read": true,
+      ".read": "auth != null",
       "config": {
         "senha": {
-          ".write": "!data.exists() || data.val() == ''"
+          ".write": "auth != null && (!data.exists() || data.val() == '')"
         }
       },
       "$membro": {
         "diag": { ".read": false, ".write": false },
         "$campo": {
-          ".write": true
+          ".write": "auth != null"
         }
       }
     },
     "historico": {
-      ".read": true,
+      ".read": "auth != null",
       "$chave": {
         "$ts": {
-          ".write": true
+          ".write": "auth != null"
         }
       }
     },
     "chat": {
-      ".read": true,
+      ".read": "auth != null",
       "$msg": {
-        ".write": true
+        ".write": "auth != null"
       }
     },
     "tarefas": {
-      ".read": true,
+      ".read": "auth != null",
       "$tarefa": {
-        ".write": true
+        ".write": "auth != null"
       }
     },
     "sos": {
-      ".read": true,
+      ".read": "auth != null",
       "$vetor": {
-        ".write": true
+        ".write": "auth != null"
       }
     }
   }

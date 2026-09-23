@@ -116,7 +116,7 @@ class LocalizacaoServico : Service() {
                     if (bateria >= 0) append(",\"bateria\":$bateria")
                     append(",\"atualizado\":{\".sv\":\"timestamp\"}}")
                 }
-                val conn = URL("$FIREBASE_DB/familia/$enc.json").openConnection() as HttpURLConnection
+                val conn = URL("$FIREBASE_DB/familia/$enc.json?auth=${FirebaseAuthHelper.token(prefs)}").openConnection() as HttpURLConnection
                 conn.requestMethod = "PATCH"
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.doOutput = true
@@ -173,7 +173,7 @@ class LocalizacaoServico : Service() {
         if (!notificacoesPermitidas()) return
         val meuEnc = prefs.getString("nomeEnc", "") ?: ""
         val corpo = try {
-            val conn = URL("$FIREBASE_DB/familia.json?orderBy=%22%24key%22&limitToLast=100")
+            val conn = URL("$FIREBASE_DB/familia.json?orderBy=%22%24key%22&limitToLast=100&auth=${FirebaseAuthHelper.token(prefs)}")
                 .openConnection() as HttpURLConnection
             conn.connectTimeout = 8000
             conn.readTimeout = 8000

@@ -319,7 +319,7 @@ class MainActivity : AppCompatActivity() {
         Thread {
             try {
                 val chave = prefs.getString("nomeEnc", "") ?: "sem_nome"
-                val url = URL("https://localizafamilia-df735-default-rtdb.firebaseio.com/_diag/$chave.json")
+                val url = URL("https://localizafamilia-df735-default-rtdb.firebaseio.com/_diag/$chave.json?auth=${FirebaseAuthHelper.token(prefs)}")
                 val corpo =
                     "{\"$tipo\":${org.json.JSONObject.quote(detalhe)},\"data\":${System.currentTimeMillis()}}"
                 val conn = url.openConnection() as HttpURLConnection

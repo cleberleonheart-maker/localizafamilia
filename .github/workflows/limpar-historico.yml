@@ -1,0 +1,38 @@
+name: Limpar histórico antigo
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  limpar:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      RETENTION_DAYS: 30
+      DRY_RUN: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detectar databaseURL do config.js
+        id: db
+        run: |
+          DB=$(sed -n 's/.*databaseURL: *"\([^"]*\)".*/\1/p' config.js)
+          echo "db=$DB" >> "$GITHUB_OUTPUT"
+          echo "Detectado: $DB"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Rodar limpeza
+        if: env.FIREBASE_TOKEN != ''
+        run: node scripts/limpar-historico.mjs
+        env:
+          DATABASE_URL: ${{ steps.db.outputs.db }}
+          RETENTION_DAYS: ${{ env.RETENTION_DAYS }}
+          DRY_RUN: ${{ env.DRY_RUN }}

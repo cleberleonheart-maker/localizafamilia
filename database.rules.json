@@ -18,7 +18,8 @@
       "$membro": {
         "diag": { ".read": false, ".write": false },
         "$campo": {
-          ".write": "auth != null"
+          ".write": "auth != null",
+          ".validate": "newData.isString() ? newData.val().length <= 500 : newData.isBoolean() || newData.isNumber()"
         }
       }
     },
@@ -26,24 +27,30 @@
       ".read": "auth != null",
       "$chave": {
         "$ts": {
-          ".write": "auth != null"
+          ".write": "auth != null && $ts.matches(/^[0-9]{13}$/)"
         }
       }
     },
     "chat": {
       ".read": "auth != null",
       "$msg": {
-        ".write": "auth != null"
+        ".write": "auth != null",
+        ".validate": "newData.isString() ? newData.val().length <= 2000 : true"
       }
     },
     "tarefas": {
       ".read": "auth != null",
       "$tarefa": {
-        ".write": "auth != null"
+        ".write": "auth != null",
+        ".validate": "newData.isString() ? newData.val().length <= 2000 : true"
       }
     },
     "sos": {
       ".read": "auth != null",
+      "alerta": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['nome','lat','lng','t']) && newData.child('nome').isString() && newData.child('nome').val().length <= 100 && newData.child('lat').isNumber() && newData.child('lng').isNumber() && newData.child('t').isNumber()"
+      },
       "$vetor": {
         ".write": "auth != null"
       }

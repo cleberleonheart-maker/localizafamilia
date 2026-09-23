@@ -67,10 +67,10 @@ class MainActivity : AppCompatActivity() {
                     url: String?,
                     message: String?,
                     result: JsResult?
-                ) {
+                ): Boolean {
                     if (isFinishing) {
                         result?.cancel()
-                        return
+                        return true
                     }
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle(view?.title ?: url ?: "Localiza Família")
@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
                         .setPositiveButton("OK") { _, _ -> result?.confirm() }
                         .setOnCancelListener { result?.cancel() }
                         .show()
+                    return true
                 }
 
                 override fun onJsPrompt(
@@ -86,10 +87,10 @@ class MainActivity : AppCompatActivity() {
                     message: String?,
                     defaultValue: String?,
                     result: JsPromptResult?
-                ) {
+                ): Boolean {
                     if (isFinishing) {
                         result?.cancel()
-                        return
+                        return true
                     }
                     val input = EditText(this@MainActivity)
                     if (!defaultValue.isNullOrEmpty()) input.setText(defaultValue)
@@ -107,6 +108,7 @@ class MainActivity : AppCompatActivity() {
                         .setOnCancelListener { result?.cancel() }
                         .create()
                     dlg.show()
+                    return true
                 }
             }
             webView.webViewClient = object : WebViewClient() {

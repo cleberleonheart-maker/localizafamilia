@@ -28,14 +28,15 @@
     position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
     width: min(94%, 420px); background: var(--cartao); border-radius: 16px;
     box-shadow: 0 8px 30px rgba(0,0,0,.5); padding: 14px 16px;
+    display: none;
   }
-  .topo { top: 12px; display: flex; align-items: center; gap: 10px; }
+  .topo { top: 12px; display: flex !important; align-items: center; gap: 10px; }
   .topo .titulo { font-weight: 700; font-size: 16px; }
   .topo .subtitulo { font-size: 12px; opacity: .7; }
   .status-ponto { width: 16px; height: 16px; border-radius: 50%; }
   .status-ponto.ligado { background: var(--verde); box-shadow: 0 0 10px var(--verde); }
   .status-ponto.desligado { background: var(--vermelho); }
-  .rodape { bottom: 12px; display: flex; gap: 10px; align-items: center; }
+  .rodape { bottom: 12px; display: flex !important; gap: 10px; align-items: center; }
   .rodape .info { flex: 1; font-size: 11px; opacity: .75; line-height: 1.4; }
   button {
     background: var(--azul-claro); color: #fff; border: 0; border-radius: 10px;
@@ -49,6 +50,7 @@
     box-shadow: 0 8px 30px rgba(0,0,0,.5);
   }
   .lista.visivel { display: block; }
+  .painel.visivel { display: block !important; }
   .item-familia { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
   .item-familia:last-child { border-bottom: 0; }
   .item-familia .nome { flex: 1; font-weight: 600; font-size: 14px; }

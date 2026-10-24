@@ -1336,18 +1336,23 @@ function adicionarTarefa() {
 }
 
 function renderizarTarefas() {
+  const meuNome = localStorage.getItem("nomeFamiliar") || "";
   if (tarefas.length === 0) {
     listaTarefas.innerHTML = "<div style='font-size:12px;opacity:.7;padding:6px 0'>Nenhuma tarefa ainda.</div>";
     return;
   }
-  listaTarefas.innerHTML = tarefas.map((t, i) => `
+  listaTarefas.innerHTML = tarefas.map((t, i) => {
+    const possoEditar = t.criadoPor && meuNome && t.criadoPor === meuNome;
+    return `
     <div class="item-tarefa">
       <div class="check ${t.feito ? "feita" : ""}" data-i="${i}">${t.feito ? "✓" : ""}</div>
-      <div class="txt ${t.feito ? "feita" : ""}">
-        <div>${t.texto || ""}</div>
-        <div class="linha">${t.criadoPor || ""}${t.feitoPor ? " · feito por " + t.feitoPor : ""}</div>
+      <div class="txt ${t.feito ? "feita" : ""}" style="flex:1">
+        <div>${escapeHtml(t.texto || "")}</div>
+        <div class="linha">${t.criadoPor || ""}${t.feitoPor ? " · feito por " + escapeHtml(t.feitoPor) : ""}</div>
       </div>
-    </div>`).join("");
+      ${possoEditar ? `<button class="botao" style="padding:4px 8px;font-size:11px" data-edit="${i}">✏️</button><button class="botao" style="padding:4px 8px;font-size:11px" data-del="${i}">🗑️</button>` : ""}
+    </div>`;
+  }).join("");
   listaTarefas.querySelectorAll(".check").forEach((c) => {
     c.addEventListener("click", () => {
       const t = tarefas[parseInt(c.dataset.i, 10)];
@@ -1357,6 +1362,31 @@ function renderizarTarefas() {
         feito: !t.feito,
         feitoPor: !t.feito ? (localStorage.getItem("nomeFamiliar") || "") : null
       }).catch(() => {});
+    });
+  });
+  listaTarefas.querySelectorAll("[data-edit]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const t = tarefas[parseInt(b.dataset.edit, 10)];
+      if (!t || !t._chave) return;
+      const atual = t.texto || "";
+      const novo = prompt("Editar tarefa:", atual);
+      if (novo === null) return;
+      const txt = novo.trim();
+      if (!txt) {
+        notificar("Tarefa não pode ficar vazia.");
+        return;
+      }
+      const db = abrirFirebase();
+      update(dbRef(db, `tarefas/${t._chave}`), { texto: txt }).catch(() => notificar("Falha ao editar"));
+    });
+  });
+  listaTarefas.querySelectorAll("[data-del]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const t = tarefas[parseInt(b.dataset.del, 10)];
+      if (!t || !t._chave) return;
+      if (!confirm("Excluir esta tarefa?")) return;
+      const db = abrirFirebase();
+      remove(dbRef(db, `tarefas/${t._chave}`)).catch(() => notificar("Falha ao excluir"));
     });
   });
 }

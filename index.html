@@ -814,16 +814,99 @@ function verRota(nome) {
 }
 
 let camadaTrilha = null;
+let ultimaTrilha = { pontos: [], nome: "" };
+
+function escaparXml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function exportarCSV(pontos, nome) {
+  if (!pontos || !pontos.length) {
+    notificar("Sem pontos para exportar.");
+    return;
+  }
+  const header = "tempo,latitude,longitude\n";
+  const linhas = pontos.map((p) => {
+    const iso = p.t ? new Date(p.t).toISOString() : "";
+    return `${iso},${p.lat},${p.lng}`;
+  });
+  const csv = header + linhas.join("\n") + "\n";
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const data = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `localizafamilia-${String(nome).replace(/[^a-zA-Z0-9-_]+/g, "_")}-${data}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  notificar("CSV exportado");
+}
+
+function exportarGPX(pontos, nome) {
+  if (!pontos || !pontos.length) {
+    notificar("Sem pontos para exportar.");
+    return;
+  }
+  const dataHoje = new Date().toISOString();
+  const nomeLimpo = escaparXml(nome || "LocalizaFamilia");
+  let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  gpx += `<gpx version="1.1" creator="LocalizaFamilia" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+  gpx += `  <trk>\n`;
+  gpx += `    <name>${nomeLimpo} - ${new Date().toLocaleDateString("pt-BR")}</name>\n`;
+  gpx += `    <trkseg>\n`;
+  pontos.forEach((p) => {
+    if (p.lat == null || p.lng == null) return;
+    const time = p.t ? new Date(p.t).toISOString() : dataHoje;
+    gpx += `      <trkpt lat="${p.lat}" lon="${p.lng}"><time>${time}</time></trkpt>\n`;
+  });
+  gpx += `    </trkseg>\n`;
+  gpx += `  </trk>\n`;
+  gpx += `</gpx>\n`;
+  const blob = new Blob([gpx], { type: "application/gpx+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const data = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `localizafamilia-${String(nome).replace(/[^a-zA-Z0-9-_]+/g, "_")}-${data}.gpx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  notificar("GPX exportado");
+}
+
+window.exportarCSV = exportarCSV;
+window.exportarGPX = exportarGPX;
+
+function fecharTrilha() {
+  if (camadaTrilha) {
+    try { mapa.removeLayer(camadaTrilha); } catch (e) {}
+    camadaTrilha = null;
+  }
+  ultimaTrilha = { pontos: [], nome: "" };
+  const painel = document.getElementById("painelExportarRota");
+  if (painel) painel.style.display = "none";
+}
+
+window.fecharTrilha = fecharTrilha;
 
 function desenharTrilha(pontos, nome) {
   if (camadaTrilha) {
-    mapa.removeLayer(camadaTrilha);
+    try { mapa.removeLayer(camadaTrilha); } catch (e) {}
     camadaTrilha = null;
   }
-  if (!pontos.length) {
+  if (!pontos || !pontos.length) {
     notificar(`Sem pontos registrados hoje para ${nome} ainda.`);
     return;
   }
+  ultimaTrilha = { pontos: pontos.slice(), nome: nome };
   camadaTrilha = L.layerGroup().addTo(mapa);
   L.polyline(pontos.map((p) => [p.lat, p.lng]), { color: "#FF9800", weight: 4 }).addTo(camadaTrilha);
   L.circleMarker([pontos[0].lat, pontos[0].lng], { color: "#2ECC71", radius: 8 })
@@ -831,8 +914,16 @@ function desenharTrilha(pontos, nome) {
   const ultimo = pontos[pontos.length - 1];
   L.circleMarker([ultimo.lat, ultimo.lng], { color: "#E74C3C", radius: 8 })
     .addTo(camadaTrilha).bindPopup(`<b>${nome}</b><br>último ponto`);
-  mapa.fitBounds(L.latLngBounds(pontos.map((p) => [p.lat, p.lng])).pad(0.2));
+  try {
+    mapa.fitBounds(L.latLngBounds(pontos.map((p) => [p.lat, p.lng])).pad(0.2));
+  } catch (e) {}
   notificar(`Rota de ${nome}: ${pontos.length} pontos hoje`);
+  const painel = document.getElementById("painelExportarRota");
+  if (painel) {
+    const expNome = document.getElementById("expNome");
+    if (expNome) expNome.textContent = nome + " · " + pontos.length + " pts";
+    painel.style.display = "flex";
+  }
 }
 
 const btnSos = document.getElementById("btnSos");
@@ -1718,6 +1809,13 @@ if ("serviceWorker" in navigator) {
       window.location.reload();
     });
   }
+
+  const painelExportarRota = document.createElement('div');
+  painelExportarRota.id = 'painelExportarRota';
+  painelExportarRota.className = 'painel-exportar';
+  painelExportarRota.style.cssText = 'display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9998;background:rgba(15,23,42,.95);color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:92vw;width:420px;border:1px solid rgba(255,255,255,.12)';
+  painelExportarRota.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-size:12px;font-weight:600">Exportar rota do dia</div><div style="font-size:11px;opacity:.7" id="expNome">-</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarGPX(ultimaTrilha.pontos, ultimaTrilha.nome)">GPX</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarCSV(ultimaTrilha.pontos, ultimaTrilha.nome)">CSV</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="fecharTrilha()">Fechar</button></div></div>';
+  document.body.appendChild(painelExportarRota);
 }
 </script>
 </body>

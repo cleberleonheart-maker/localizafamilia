@@ -856,6 +856,12 @@ function salvarContatos() {
 }
 
 document.getElementById("btnContatos").addEventListener("click", () => {
+  try {
+    contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
+    if (!Array.isArray(contatos)) contatos = [];
+  } catch (e) {
+    contatos = [];
+  }
   alternarPainel(painelContatos);
   renderizarContatos();
 });

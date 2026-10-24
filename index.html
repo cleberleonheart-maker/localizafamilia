@@ -851,14 +851,20 @@ const contatoAdd = document.getElementById("contatoAdd");
 
 let contatos = [];
 try {
-  if (window.AndroidMic && typeof window.AndroidMic.lerContatos === "function") {
+  const ls = localStorage.getItem("contatosEmergencia");
+  if (ls) {
+    contatos = JSON.parse(ls || "[]");
+  } else if (window.AndroidMic && typeof window.AndroidMic.lerContatos === "function") {
     const raw = window.AndroidMic.lerContatos();
     contatos = JSON.parse(raw || "[]");
-  } else {
-    contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
   }
 } catch (e) {
-  try { contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]"); } catch (e2) { contatos = []; }
+  try {
+    const ls = localStorage.getItem("contatosEmergencia");
+    contatos = JSON.parse(ls || "[]");
+  } catch (e2) {
+    contatos = [];
+  }
 }
 if (!Array.isArray(contatos)) contatos = [];
 
@@ -876,11 +882,12 @@ function salvarContatos() {
 
 document.getElementById("btnContatos").addEventListener("click", () => {
   try {
-    if (window.AndroidMic && typeof window.AndroidMic.lerContatos === "function") {
+    const ls = localStorage.getItem("contatosEmergencia");
+    if (ls) {
+      contatos = JSON.parse(ls || "[]");
+    } else if (window.AndroidMic && typeof window.AndroidMic.lerContatos === "function") {
       const raw = window.AndroidMic.lerContatos();
       contatos = JSON.parse(raw || "[]");
-    } else {
-      contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
     }
     if (!Array.isArray(contatos)) contatos = [];
   } catch (e) {

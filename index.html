@@ -88,6 +88,8 @@
     box-shadow: 0 4px 16px rgba(0,0,0,.4); display: none;
   }
   .alerta.visivel { display: block; }
+  .conexao { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1100; background: #dc2626; color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 12px; display: none; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+  .conexao.ok { background: #22c55e; color: #052e16; }
   button.sos {
     position: fixed; z-index: 1500; bottom: 92px; left: 12px;
     width: 58px; height: 58px; border-radius: 50%; background: var(--vermelho);
@@ -211,7 +213,8 @@
   <button id="btnApk" title="Baixar versão Android (APK)">📦</button>
 </div>
 
-<div class="alerta" id="alerta"></div>
+  <div class="alerta" id="alerta"></div>
+  <div class="conexao" id="conexaoBar">Sem internet</div>
 
 <div class="painel lugares" id="painelLugares">
   <div style="font-weight:700;margin-bottom:8px">Cercas de aviso 📌</div>
@@ -400,6 +403,27 @@ const painelLugares = document.getElementById("painelLugares");
 const listaLugares = document.getElementById("listaLugares");
 const btnAddLugar = document.getElementById("btnAddLugar");
 const alerta = document.getElementById("alerta");
+const conexaoBar = document.getElementById("conexaoBar");
+
+function atualizarConexao() {
+  if (!conexaoBar) return;
+  if (navigator.onLine) {
+    conexaoBar.textContent = "Conectado";
+    conexaoBar.classList.add("ok");
+    conexaoBar.style.display = "block";
+    setTimeout(() => {
+      conexaoBar.style.display = "none";
+      conexaoBar.classList.remove("ok");
+    }, 2000);
+  } else {
+    conexaoBar.textContent = "Sem internet";
+    conexaoBar.classList.remove("ok");
+    conexaoBar.style.display = "block";
+  }
+}
+window.addEventListener("online", atualizarConexao);
+window.addEventListener("offline", atualizarConexao);
+setTimeout(atualizarConexao, 500);
 
 let lugares = JSON.parse(localStorage.getItem("lugares") || "[]");
 const estadoCerca = new Map();

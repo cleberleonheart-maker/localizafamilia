@@ -1,37 +1,56 @@
-const CACHE = "localizafamilia-v15";
-const ARQUIVOS = [
-  "./",
-  "./index.html",
-  "./manifest.json",
-  "./icon.svg"
+const CACHE_NAME = 'localizafamilia-v1.0.2';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './icon.svg',
+  './sw.js'
 ];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
+// Instala e força ativação imediata
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
+  );
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then((chaves) =>
-      Promise.all(chaves.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+// Limpa caches antigos e assume controle
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
     ).then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
-  e.respondWith(
-    caches.match(e.request).then((emCache) => {
-      const rede = fetch(e.request)
-        .then((resposta) => {
-          if (resposta && resposta.status === 200 && e.request.url.startsWith(self.location.origin)) {
-            const copia = resposta.clone();
-            caches.open(CACHE).then((c) => c.put(e.request, copia));
-          }
-          return resposta;
+// Estratégia: cache-first com fallback pra rede
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  if (req.url.includes('firebaseio.com') || req.url.includes('googleapis.com')) return;
+
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      const fetchPromise = fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          return res;
         })
-        .catch(() => emCache);
-      return emCache || rede;
+        .catch(() => cached);
+      return cached || fetchPromise;
     })
   );
+});
+
+// Permite pular espera via mensagem
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

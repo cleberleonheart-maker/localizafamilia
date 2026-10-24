@@ -849,18 +849,42 @@ const contatoNome = document.getElementById("contatoNome");
 const contatoTelefone = document.getElementById("contatoTelefone");
 const contatoAdd = document.getElementById("contatoAdd");
 
-let contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
+let contatos = [];
+try {
+  if (window.AndroidMic && typeof window.AndroidMic.lerContatos === "function") {
+    const raw = window.AndroidMic.lerContatos();
+    contatos = JSON.parse(raw || "[]");
+  } else {
+    contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
+  }
+} catch (e) {
+  try { contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]"); } catch (e2) { contatos = []; }
+}
+if (!Array.isArray(contatos)) contatos = [];
 
 function salvarContatos() {
-  localStorage.setItem("contatosEmergencia", JSON.stringify(contatos));
+  const json = JSON.stringify(contatos);
+  try {
+    localStorage.setItem("contatosEmergencia", json);
+  } catch (e) {}
+  try {
+    if (window.AndroidMic && typeof window.AndroidMic.salvarContatos === "function") {
+      window.AndroidMic.salvarContatos(json);
+    }
+  } catch (e) {}
 }
 
 document.getElementById("btnContatos").addEventListener("click", () => {
   try {
-    contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
+    if (window.AndroidMic && typeof window.AndroidMic.lerContatos === "function") {
+      const raw = window.AndroidMic.lerContatos();
+      contatos = JSON.parse(raw || "[]");
+    } else {
+      contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]");
+    }
     if (!Array.isArray(contatos)) contatos = [];
   } catch (e) {
-    contatos = [];
+    try { contatos = JSON.parse(localStorage.getItem("contatosEmergencia") || "[]"); } catch (e2) { contatos = []; }
   }
   alternarPainel(painelContatos);
   renderizarContatos();

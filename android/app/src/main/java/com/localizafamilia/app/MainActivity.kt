@@ -438,6 +438,23 @@ class MainActivity : AppCompatActivity() {
                 .putString("fbProjectId", projectId.trim())
                 .apply()
         }
+
+        @JavascriptInterface
+        fun salvarContatos(json: String) {
+            try {
+                prefs.edit().putString("contatosEmergencia", json).apply()
+            } catch (_: Exception) {
+            }
+        }
+
+        @JavascriptInterface
+        fun lerContatos(): String {
+            return try {
+                prefs.getString("contatosEmergencia", "[]") ?: "[]"
+            } catch (_: Exception) {
+                "[]"
+            }
+        }
     }
 
     companion object {

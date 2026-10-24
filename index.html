@@ -8,7 +8,9 @@
 <meta name="theme-color" content="#1A237E">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 <style>
   :root {
     --azul: #1A237E;
@@ -287,7 +289,8 @@
   <div class="info" id="info">Localização: —<br>Precisão: —</div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -603,18 +606,33 @@ function registrarNoFirebase() {
   update(minha, dados).finally(() => { enviandoFirebase = false; });
 }
 
+let filtroSomenteOnline = localStorage.getItem("filtroSomenteOnline") === "1";
+
 function escutarFamilia() {
   if (!estaConfigurado()) return;
   const db = abrirFirebase();
   const lista = query(dbRef(db, "familia"), limitToLast(100));
   onValue(lista, (snap) => {
     membros.clear();
+    // Remove marcadores que não existem mais ou ficam offline
+    const presentes = new Set();
     const dados = snap.val() || {};
     Object.values(dados).forEach((m) => {
       if (m && typeof m.lat === "number" && typeof m.lng === "number" && !m.invisivel) {
+        presentes.add(m.nome);
         membros.set(m.nome, m);
         atualizarMarcadorDoMembro(m);
         ligarHistoricoDe(m.nome.replace(/[^a-zA-Z0-9-_]/g, "_"));
+      }
+    });
+    // Limpa marcadores ausentes
+    Array.from(marcadoresMembros.keys()).forEach((nome) => {
+      if (!presentes.has(nome)) {
+        const mk = marcadoresMembros.get(nome);
+        if (mk) {
+          try { clusterMembros.removeLayer(mk); } catch(e) {}
+        }
+        marcadoresMembros.delete(nome);
       }
     });
     atualizarInterface();
@@ -625,19 +643,31 @@ function escutarFamilia() {
 }
 
 const marcadoresMembros = new Map();
+const clusterMembros = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 40, spiderfyOnMaxZoom: true });
+let clusterAdicionadoAoMapa = false;
+
+function garantirClusterNoMapa() {
+  if (!clusterAdicionadoAoMapa && typeof mapa !== "undefined") {
+    mapa.addLayer(clusterMembros);
+    clusterAdicionadoAoMapa = true;
+  }
+}
 
 function atualizarMarcadorDoMembro(m) {
   const popup = (m.status || m.bateria !== undefined)
     ? `<b>${m.nome}</b><br>${m.status ? iconeStatus(m.status) + " " + nomeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}`
     : `<b>${m.nome}</b>`;
+  garantirClusterNoMapa();
   const existente = marcadoresMembros.get(m.nome);
   if (existente) {
     existente.setLatLng([m.lat, m.lng]);
     existente.bindPopup(popup);
+    if (!clusterMembros.hasLayer(existente)) {
+      clusterMembros.addLayer(existente);
+    }
   } else {
-    const marcador = L.marker([m.lat, m.lng], { icon: iconeMembro })
-      .addTo(mapa)
-      .bindPopup(popup);
+    const marcador = L.marker([m.lat, m.lng], { icon: iconeMembro }).bindPopup(popup);
+    clusterMembros.addLayer(marcador);
     marcadoresMembros.set(m.nome, marcador);
   }
 }
@@ -655,6 +685,10 @@ function nomeStatus(id) {
 function renderizarFamilia() {
   const meuNome = localStorage.getItem("nomeFamiliar") || "";
   const html = [];
+  html.push(`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">
+    <button class="botao" style="padding:6px 10px;font-size:12px" onclick="toggleFiltroOnline()">👥 ${filtroSomenteOnline ? 'Mostrar todos' : 'Só online'}</button>
+    <span style="font-size:11px;color:var(--texto-sec)">${(filtroSomenteOnline ? Array.from(membros.values()).filter(m => m.nome !== meuNome).length : Array.from(membros.values()).filter(m => m.nome !== meuNome).length) + (minhaPosicao ? 1 : 0)} online</span>
+  </div>`);
   html.push(`
     <div class="status-row">
       ${STATUS_OPCOES.map((s) => `
@@ -673,8 +707,8 @@ function renderizarFamilia() {
         <button class="rota" data-nome="${meuNome || "Eu"}">Rota</button>
       </div>`);
   }
-  membros.forEach((m) => {
-    if (m.nome === meuNome) return;
+  const membrosFiltrados = Array.from(membros.values()).filter((m) => m.nome !== meuNome);
+  membrosFiltrados.forEach((m) => {
     const dist = minhaPosicao ? distanciaEmKm(minhaPosicao, m) : 0;
     html.push(`
       <div class="item-familia">
@@ -683,7 +717,10 @@ function renderizarFamilia() {
         <button class="rota" data-nome="${m.nome}">Rota</button>
       </div>`);
   });
-  listaFamilia.innerHTML = html.length > 0 ? html.join("") : "<div style='padding:8px 0;font-size:12px;opacity:.6'>Nenhum familiar conectado.</div>";
+  if ((minhaPosicao ? 1 : 0) + membrosFiltrados.length === 0) {
+    html.push('<div class="vazio">Nenhum membro online ainda.</div>');
+  }
+  listaFamilia.innerHTML = html.join("");
   listaFamilia.querySelectorAll(".rota").forEach((b) => {
     b.addEventListener("click", () => verRota(b.dataset.nome));
   });
@@ -704,6 +741,12 @@ function sairFamilia() {
   localStorage.removeItem("nomeFamiliar");
   location.reload();
 }
+
+window.toggleFiltroOnline = function() {
+  filtroSomenteOnline = !filtroSomenteOnline;
+  localStorage.setItem("filtroSomenteOnline", filtroSomenteOnline ? "1" : "0");
+  renderizarFamilia();
+};
 
 function definirStatus(id) {
   meuStatus = meuStatus === id ? "" : id;
@@ -1589,7 +1632,55 @@ function iniciarAuth() {
 iniciarAuth();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  let deferredPrompt = null;
+  const btnInstalar = document.createElement('button');
+  btnInstalar.id = 'btnInstalarPWA';
+  btnInstalar.textContent = '📲 Instalar app';
+  btnInstalar.style.cssText = 'position:fixed;bottom:70px;right:12px;z-index:9999;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(15,23,42,.9);color:#fff;font-size:12px;display:none';
+  document.body.appendChild(btnInstalar);
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    btnInstalar.style.display = 'block';
+  });
+
+  btnInstalar.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice.catch(()=>{});
+    deferredPrompt = null;
+    btnInstalar.style.display = 'none';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    btnInstalar.style.display = 'none';
+    deferredPrompt = null;
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            const aviso = document.createElement('div');
+            aviso.textContent = '✨ Nova versão disponível';
+            aviso.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10000;background:#22c55e;color:#052e16;padding:8px 14px;border-radius:999px;font-size:12px;box-shadow:0 10px 40px rgba(0,0,0,.4);cursor:pointer';
+            aviso.onclick = () => {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+              window.location.reload();
+            };
+            document.body.appendChild(aviso);
+          }
+        });
+      });
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+  }
 }
 </script>
 </body>

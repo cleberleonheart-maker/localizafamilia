@@ -169,6 +169,7 @@
   .msg .quem { font-weight: 700; font-size: 11px; opacity: .75; }
   .msg .quando { font-size: 10px; opacity: .5; margin-left: 6px; }
   .msg .texto { margin-top: 2px; }
+  .msg .visto { font-size: 10px; opacity: .6; margin-top: 3px; text-align: right; }
   .chat-input { display: flex; gap: 8px; margin-top: 8px; }
   .chat-input input {
     flex: 1; background: var(--campo); border: 1px solid var(--borda);
@@ -1305,6 +1306,7 @@ const btnInvisivel = document.getElementById("btnInvisivel");
 
 let chatMensagens = [];
 let ultimaMsgVista = "";
+let vistosChat = {};
 const badgeChat = document.getElementById("badgeChat");
 
 function chatVistoT() {
@@ -1326,6 +1328,14 @@ function marcarChatVisto() {
   const marco = Math.max(Date.now(), ultima);
   try { localStorage.setItem("chatVistoT", String(marco)); } catch (_) {}
   atualizarBadgeChat();
+  const nome = localStorage.getItem("nomeFamiliar");
+  if (nome && estaConfigurado()) {
+    const db = abrirFirebase();
+    const anterior = vistosChat[chaveNome(nome)];
+    if (!anterior || marco - (anterior.t || 0) > 5000) {
+      set(dbRef(db, `chatVisto/${chaveNome(nome)}`), { nome, t: marco }).catch(() => {});
+    }
+  }
 }
 
 chatEnviar.addEventListener("click", enviarChat);
@@ -1350,6 +1360,23 @@ function enviarChat() {
 }
 
 function renderizarChat() {
+  const meuNome = localStorage.getItem("nomeFamiliar") || "";
+  chatMsgs.innerHTML = chatMensagens.map((m) => {
+    let visto = "";
+    if (m.nome === meuNome) {
+      const leitores = Object.values(vistosChat || {})
+        .filter((v) => v && v.nome && v.nome !== meuNome && (v.t || 0) >= (m.t || 0))
+        .map((v) => v.nome);
+      if (leitores.length) visto = `<div class="visto">Visto por ${escapeHtml(leitores.join(", "))}</div>`;
+    }
+    return `
+      <div class="msg ${m.nome === meuNome ? "minha" : ""}">
+        <span class="quem">${escapeHtml(m.nome || "?")}</span>
+        <span class="quando">${m.t ? new Date(m.t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}</span>
+        <div class="texto">${escapeHtml(m.texto || "")}</div>
+        ${visto}
+      </div>`;
+  }).join("");
   chatMsgs.scrollTop = chatMsgs.scrollHeight;
 }
 
@@ -1360,13 +1387,7 @@ function escutarChat() {
   onValue(lista, (snap) => {
     chatMensagens = Object.values(snap.val() || {}).sort((a, b) => a.t - b.t);
     const meuNome = localStorage.getItem("nomeFamiliar") || "";
-    chatMsgs.innerHTML = chatMensagens.map((m) => `
-      <div class="msg ${m.nome === meuNome ? "minha" : ""}">
-        <span class="quem">${escapeHtml(m.nome || "?")}</span>
-        <span class="quando">${m.t ? new Date(m.t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}</span>
-        <div class="texto">${escapeHtml(m.texto || "")}</div>
-      </div>`).join("");
-    chatMsgs.scrollTop = chatMsgs.scrollHeight;
+    renderizarChat();
     if (painelChat.classList.contains("visivel")) {
       marcarChatVisto();
     } else {
@@ -1377,6 +1398,10 @@ function escutarChat() {
       ultimaMsgVista = maisRecente.texto;
       if (navigator.vibrate) navigator.vibrate(150);
     }
+  });
+  onValue(dbRef(db, "chatVisto"), (snap) => {
+    vistosChat = snap.val() || {};
+    renderizarChat();
   });
 }
 

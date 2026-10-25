@@ -38,6 +38,13 @@
         ".validate": "newData.isString() ? newData.val().length <= 2000 : true"
       }
     },
+    "chatVisto": {
+      ".read": "auth != null",
+      "$membro": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['nome','t']) && newData.child('nome').isString() && newData.child('nome').val().length <= 60 && newData.child('t').isNumber()"
+      }
+    },
     "tarefas": {
       ".read": "auth != null",
       ".indexOn": ["criadoPor", "t"],

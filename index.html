@@ -18,9 +18,35 @@
     --fundo: #0F1526;
     --cartao: #1A2238;
     --texto: #E8EAF6;
+    --texto-sec: rgba(232,234,246,.65);
+    --painel: #232C47;
+    --campo: #0F1526;
+    --borda: rgba(255,255,255,.2);
+    --borda-suave: var(--borda-suave);
     --verde: #2ECC71;
     --vermelho: #E74C3C;
   }
+  body.claro {
+    --fundo: #EEF1F7;
+    --cartao: #FFFFFF;
+    --texto: #16203A;
+    --texto-sec: #5A6785;
+    --painel: #FFFFFF;
+    --campo: #F2F4F9;
+    --borda: rgba(0,0,0,.18);
+    --borda-suave: rgba(0,0,0,.1);
+  }
+  body.claro .painel,
+  body.claro .lista,
+  body.claro .campo-nome,
+  body.claro .login-bx { box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+  body.claro .item-familia .rota,
+  body.claro .status-row button { color: var(--texto); border-color: var(--borda); }
+  body.claro .login-modo { color: var(--texto-sec); }
+  body.claro .alerta { color: #000; }
+  body.claro .msg.minha { color: #fff; }
+  body.claro .item-tarefa .check { border-color: var(--borda); }
+  body.claro .item-familia .rota { color: var(--texto); }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; font-family: system-ui, -apple-system, sans-serif; background: var(--fundo); color: var(--texto); }
   #mapa { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
@@ -51,7 +77,7 @@
   }
   .lista.visivel { display: block; }
   .painel.visivel { display: block !important; }
-  .item-familia { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .item-familia { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--borda-suave); }
   .item-familia:last-child { border-bottom: 0; }
   .item-familia .nome { flex: 1; font-weight: 600; font-size: 14px; }
   .item-familia .distancia { font-size: 12px; color: var(--verde); }
@@ -69,13 +95,13 @@
   }
   .campo-nome .campo-nome-titulo { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
   .campo-nome input {
-    width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
+    width: 100%; background: var(--campo); border: 1px solid var(--borda);
     color: var(--texto); border-radius: 10px; padding: 10px 12px; font-size: 14px;
   }
-  .painel.lugares { bottom: 86px; background: #232C47; }
+  .painel.lugares { bottom: 86px; background: var(--painel); }
   .item-lugar {
     display: flex; align-items: center; gap: 8px; padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px;
+    border-bottom: 1px solid var(--borda-suave); font-size: 13px;
   }
   .item-lugar:last-child { border-bottom: 0; }
   .item-lugar .nome { flex: 1; font-weight: 600; }
@@ -107,7 +133,7 @@
   button.btn-mic:active { transform: scale(.92); }
   body.painel-aberto button.btn-mic { display: none; }
   .item-familia .rota {
-    background: transparent; border: 1px solid rgba(255,255,255,.25);
+    background: transparent; border: 1px solid var(--borda);
     color: var(--texto); padding: 4px 8px; font-size: 11px; border-radius: 8px;
   }
   .sos-tela {
@@ -128,21 +154,21 @@
     padding: 10px 14px; font-weight: 700; margin: 4px;
   }
   .sos-bx .reconhecer { background: transparent; color: #fff; border: 2px solid #fff; }
-  .painel.chat { bottom: 86px; background: #232C47; }
+  .painel.chat { bottom: 86px; background: var(--painel); }
   .chat-msgs { max-height: 30vh; overflow-y: auto; padding: 4px 0; }
-  .msg { margin: 6px 0; padding: 7px 10px; border-radius: 12px; background: #0F1526; font-size: 13px; }
+  .msg { margin: 6px 0; padding: 7px 10px; border-radius: 12px; background: var(--campo); font-size: 13px; }
   .msg.minha { background: var(--azul-claro); align-self: flex-end; margin-left: 30px; }
   .msg .quem { font-weight: 700; font-size: 11px; opacity: .75; }
   .msg .quando { font-size: 10px; opacity: .5; margin-left: 6px; }
   .msg .texto { margin-top: 2px; }
   .chat-input { display: flex; gap: 8px; margin-top: 8px; }
   .chat-input input {
-    flex: 1; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
+    flex: 1; background: var(--campo); border: 1px solid var(--borda);
     color: var(--texto); border-radius: 10px; padding: 9px 12px; font-size: 14px;
   }
-  .status-row { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 6px; }
+  .status-row { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--borda-suave); margin-bottom: 6px; }
   .status-row button {
-    background: transparent; border: 1px solid rgba(255,255,255,.25);
+    background: transparent; border: 1px solid var(--borda);
     padding: 5px 8px; font-size: 12px; border-radius: 999px;
   }
   .status-row button.ativo { background: var(--azul-claro); border-color: var(--azul-claro); }
@@ -160,7 +186,7 @@
   .login-info { font-size: 13px; opacity: .8; margin-bottom: 16px; }
   .login-modos {
     display: flex; gap: 8px; margin-bottom: 12px;
-    background: #0F1526; border-radius: 10px; padding: 4px;
+    background: var(--campo); border-radius: 10px; padding: 4px;
   }
   .login-modo {
     flex: 1; border-radius: 8px; padding: 8px 4px; font-size: 13px;
@@ -169,17 +195,17 @@
   .login-modo.ativo { background: var(--verde); color: #fff; font-weight: 700; }
   .login-modo:disabled { opacity: .4; }
   .login-bx input {
-    width: 100%; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
+    width: 100%; background: var(--campo); border: 1px solid var(--borda);
     color: var(--texto); border-radius: 10px; padding: 11px 12px; font-size: 15px;
     text-align: center; margin-bottom: 12px;
   }
   .login-bx button { width: 100%; }
   .login-aviso { color: var(--vermelho); font-size: 13px; margin-top: 10px; min-height: 18px; }
-  .painel.tarefas { bottom: 86px; background: #232C47; }
-  .painel.contatos { bottom: 86px; background: #232C47; }
+  .painel.tarefas { bottom: 86px; background: var(--painel); }
+  .painel.contatos { bottom: 86px; background: var(--painel); }
   .item-tarefa {
     display: flex; align-items: flex-start; gap: 8px; padding: 9px 0;
-    border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px;
+    border-bottom: 1px solid var(--borda-suave); font-size: 13px;
   }
   .item-tarefa:last-child { border-bottom: 0; }
   .item-tarefa .check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid rgba(255,255,255,.35); flex-shrink: 0; cursor: pointer; display:flex; align-items:center; justify-content:center; font-size: 13px; }
@@ -189,7 +215,7 @@
   .item-tarefa .linha { font-size: 10px; opacity: .55; margin-top: 2px; }
   .tarefa-input { display: flex; gap: 8px; margin-top: 8px; }
   .tarefa-input input {
-    flex: 1; background: #0F1526; border: 1px solid rgba(255,255,255,.2);
+    flex: 1; background: var(--campo); border: 1px solid var(--borda);
     color: var(--texto); border-radius: 10px; padding: 9px 12px; font-size: 14px;
   }
 </style>
@@ -293,6 +319,7 @@
 <div class="painel rodape">
   <button id="btnCentralizar">🎯 Minha posição</button>
   <div class="info" id="info">Localização: —<br>Precisão: —</div>
+  <button id="btnTema" title="Modo claro/escuro" style="padding:8px 10px">☀️</button>
 </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -332,6 +359,21 @@ const statusPonto = document.getElementById("statusPonto");
 const statusTexto = document.getElementById("statusTexto");
 const info = document.getElementById("info");
 const btnCentralizar = document.getElementById("btnCentralizar");
+const btnTema = document.getElementById("btnTema");
+
+function aplicarTema(claro) {
+  document.body.classList.toggle("claro", claro);
+  try { localStorage.setItem("temaClaro", claro ? "1" : "0"); } catch (_) {}
+  if (btnTema) btnTema.textContent = claro ? "🌙" : "☀️";
+}
+let temaClaro = false;
+try {
+  const salvo = localStorage.getItem("temaClaro");
+  temaClaro = salvo === null ? window.matchMedia("(prefers-color-scheme: light)").matches : salvo === "1";
+} catch (_) {}
+aplicarTema(temaClaro);
+if (btnTema) btnTema.addEventListener("click", () => aplicarTema(!document.body.classList.contains("claro")));
+
 const btnFamilia = document.getElementById("btnFamilia");
 const listaFamilia = document.getElementById("listaFamilia");
 const campoNome = document.getElementById("campoNome");

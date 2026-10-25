@@ -108,6 +108,12 @@
     color: var(--texto); border-radius: 10px; padding: 10px 12px; font-size: 14px;
   }
   .painel.lugares { bottom: 86px; background: var(--painel); }
+  .busca-local { display: flex; gap: 6px; margin-bottom: 6px; }
+  .busca-local input {
+    flex: 1; background: var(--campo); border: 1px solid var(--borda);
+    color: var(--texto); border-radius: 10px; padding: 8px 10px; font-size: 13px;
+  }
+  .busca-local button { padding: 8px 10px; }
   .item-lugar {
     display: flex; align-items: center; gap: 8px; padding: 8px 0;
     border-bottom: 1px solid var(--borda-suave); font-size: 13px;
@@ -256,6 +262,10 @@
 <div class="painel lugares" id="painelLugares">
   <div style="font-weight:700;margin-bottom:8px">Cercas de aviso 📌</div>
   <button id="btnAddLugar" style="width:100%;margin-bottom:6px">Adicionar lugar (onde estou)</button>
+  <div class="busca-local">
+    <input id="buscaEndereco" placeholder="Buscar endereço ou lugar..." maxlength="120">
+    <button id="btnBuscarEndereco" title="Buscar no mapa">🔎</button>
+  </div>
   <div id="listaLugares"></div>
 </div>
 
@@ -634,6 +644,49 @@ btnAddLugar.addEventListener("click", () => {
   salvarLugares();
   renderizarLugares();
   notificar(`Lugar "${nome.trim()}" criado na sua posição`);
+});
+
+const buscaEndereco = document.getElementById("buscaEndereco");
+const btnBuscarEndereco = document.getElementById("btnBuscarEndereco");
+let ultimaBuscaTs = 0;
+
+function buscarEndereco() {
+  const termo = (buscaEndereco.value || "").trim();
+  if (!termo) return;
+  const agora = Date.now();
+  if (agora - ultimaBuscaTs < 1100) {
+    notificar("Aguarde um instante antes de buscar de novo.");
+    return;
+  }
+  ultimaBuscaTs = agora;
+  notificar("Buscando...");
+  const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=pt-BR&q=" + encodeURIComponent(termo);
+  fetch(url, { headers: { "Accept": "application/json" } })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((lista) => {
+      if (!Array.isArray(lista) || lista.length === 0) {
+        notificar("Endereço não encontrado. Tente ser mais específico.");
+        return;
+      }
+      const r = lista[0];
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lon);
+      if (isNaN(lat) || isNaN(lng)) return;
+      if (mapa) mapa.setView([lat, lng], 16);
+      const nome = prompt("Criar cerca de aviso aqui? Dê um nome (ou cancele):", termo);
+      if (!nome || !nome.trim()) return;
+      const raio = parseInt(prompt("Distância em metros do aviso (ex: 300):", "300"), 10) || 300;
+      lugares.push({ id: Date.now(), nome: nome.trim(), lat, lng, raio });
+      salvarLugares();
+      renderizarLugares();
+      notificar(`Cerca "${nome.trim()}" criada em ${r.display_name ? r.display_name.split(",")[0] : "local"}`);
+    })
+    .catch(() => notificar("Falha na busca. Verifique a internet."));
+}
+
+btnBuscarEndereco.addEventListener("click", buscarEndereco);
+buscaEndereco.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") buscarEndereco();
 });
 
 function dentroDoLugar(lugar, lat, lng) {

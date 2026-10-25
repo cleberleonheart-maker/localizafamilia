@@ -602,7 +602,7 @@ function renderizarLugares() {
   listaLugares.innerHTML = lugares.map((l, i) => `
     <div class="item-lugar">
       <div style="flex:1">
-        <div class="nome">${l.nome}</div>
+        <div class="nome">${escapeHtml(l.nome)}</div>
         <div class="linha">${l.lat.toFixed(5)}, ${l.lng.toFixed(5)} · raio ${l.raio} m</div>
       </div>
       <button class="remover" data-i="${i}">✕</button>
@@ -696,7 +696,11 @@ function verificarAvisosAbertos() {
 setInterval(verificarAvisosAbertos, 60000);
 
 inputNome.addEventListener("change", () => {
-  const nome = inputNome.value.trim();
+  let nome = inputNome.value.trim();
+  if (nome.length > 40) {
+    nome = nome.slice(0, 40);
+    inputNome.value = nome;
+  }
   if (nome.length > 0) {
     const atual = localStorage.getItem("nomeFamiliar") || "";
     const aplicar = () => {
@@ -824,9 +828,10 @@ function garantirClusterNoMapa() {
 }
 
 function atualizarMarcadorDoMembro(m) {
+  const nomeSeg = escapeHtml(m.nome);
   const popup = (m.status || m.bateria !== undefined)
-    ? `<b>${m.nome}</b><br>${m.status ? iconeStatus(m.status) + " " + nomeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}`
-    : `<b>${m.nome}</b>`;
+    ? `<b>${nomeSeg}</b><br>${m.status ? iconeStatus(m.status) + " " + nomeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}`
+    : `<b>${nomeSeg}</b>`;
   garantirClusterNoMapa();
   const existente = marcadoresMembros.get(m.nome);
   if (existente) {
@@ -885,9 +890,9 @@ function renderizarFamilia() {
   if (minhaPosicao) {
     html.push(`
       <div class="item-familia">
-        <div class="nome">${meuNome || "Eu"} (eu)${meuStatus ? " " + iconeStatus(meuStatus) : ""}${ultimaBateria !== null ? " · 🔋" + ultimaBateria + "%" : ""}${modoInvisivel ? " · 🌙 oculto" : ""}<div class="endereco" data-lat="${minhaPosicao.lat}" data-lng="${minhaPosicao.lng}"></div></div>
+        <div class="nome">${escapeHtml(meuNome || "Eu")} (eu)${meuStatus ? " " + iconeStatus(meuStatus) : ""}${ultimaBateria !== null ? " · 🔋" + ultimaBateria + "%" : ""}${modoInvisivel ? " · 🌙 oculto" : ""}<div class="endereco" data-lat="${minhaPosicao.lat}" data-lng="${minhaPosicao.lng}"></div></div>
         <div class="tempo">agora</div>
-        <button class="rota" data-nome="${meuNome || "Eu"}">Rota</button>
+        <button class="rota" data-nome="${escapeHtml(meuNome || "Eu")}">Rota</button>
       </div>`);
   }
   let membrosFiltrados = Array.from(membros.values()).filter((m) => m.nome !== meuNome);
@@ -900,9 +905,9 @@ function renderizarFamilia() {
     const offline = m.atualizado && agoraMs - m.atualizado > 15*60000;
     html.push(`
       <div class="item-familia">
-        <div class="nome">${m.nome}${m.status ? " " + iconeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}${offline ? " · ⚠️ offline" : ""}<div class="endereco" data-lat="${m.lat}" data-lng="${m.lng}"></div></div>
+        <div class="nome">${escapeHtml(m.nome)}${m.status ? " " + iconeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}${offline ? " · ⚠️ offline" : ""}<div class="endereco" data-lat="${m.lat}" data-lng="${m.lng}"></div></div>
         <div class="distancia">${minhaPosicao ? dist.toFixed(1) + " km" : "—"}${visto ? " · " + visto : ""}</div>
-        <button class="rota" data-nome="${m.nome}">Rota</button>
+        <button class="rota" data-nome="${escapeHtml(m.nome)}">Rota</button>
       </div>`);
   });
   if ((minhaPosicao ? 1 : 0) + membrosFiltrados.length === 0) {
@@ -1120,7 +1125,7 @@ function desenharTrilha(pontos, nome) {
     .addTo(camadaTrilha).bindPopup("<b>Início do dia</b>");
   const ultimo = pontos[pontos.length - 1];
   L.circleMarker([ultimo.lat, ultimo.lng], { color: "#E74C3C", radius: 8 })
-    .addTo(camadaTrilha).bindPopup(`<b>${nome}</b><br>último ponto`);
+    .addTo(camadaTrilha).bindPopup(`<b>${escapeHtml(nome)}</b><br>último ponto`);
   try {
     mapa.fitBounds(L.latLngBounds(pontos.map((p) => [p.lat, p.lng])).pad(0.2));
   } catch (e) {}
@@ -1204,10 +1209,15 @@ contatoTelefone.addEventListener("keydown", (e) => {
 });
 
 function adicionarContato() {
-  const nome = contatoNome.value.trim();
+  let nome = contatoNome.value.trim();
   const telefone = contatoTelefone.value.replace(/[^\d+]/g, "");
   if (!nome || !telefone) {
     notificar("Preencha nome e telefone (com DDI) do contato.");
+    return;
+  }
+  if (nome.length > 60) nome = nome.slice(0, 60);
+  if (telefone.length > 20) {
+    notificar("Telefone inválido.");
     return;
   }
   contatos.push({ nome, telefone });
@@ -1226,8 +1236,8 @@ function renderizarContatos() {
   listaContatos.innerHTML = contatos.map((c, i) => `
     <div class="item-lugar">
       <div style="flex:1">
-        <div class="nome">📞 ${c.nome}</div>
-        <div class="linha">${c.telefone}</div>
+        <div class="nome">📞 ${escapeHtml(c.nome)}</div>
+        <div class="linha">${escapeHtml(c.telefone)}</div>
       </div>
       <button class="remover" data-i="${i}">✕</button>
     </div>`).join("");
@@ -1324,7 +1334,7 @@ function mostrarSos(dados) {
   if (typeof dados.lat === "number" && typeof dados.lng === "number") {
     sosMarcador = L.marker([dados.lat, dados.lng], { icon: iconeMembro })
       .addTo(mapa)
-      .bindPopup(`<b style="color:#E74C3C">⚠️ SOS — ${dados.nome || "Familiar"}</b>`);
+      .bindPopup(`<b style="color:#E74C3C">⚠️ SOS — ${escapeHtml(dados.nome || "Familiar")}</b>`);
     mapa.setView([dados.lat, dados.lng], 15);
   }
 }
@@ -1611,7 +1621,7 @@ function renderizarTarefas() {
       <div class="check ${t.feito ? "feita" : ""}" data-i="${i}">${t.feito ? "✓" : ""}</div>
       <div class="txt ${t.feito ? "feita" : ""}" style="flex:1">
         <div>${escapeHtml(t.texto || "")}</div>
-        <div class="linha">${t.criadoPor || ""}${t.feitoPor ? " · feito por " + escapeHtml(t.feitoPor) : ""}</div>
+        <div class="linha">${escapeHtml(t.criadoPor || "")}${t.feitoPor ? " · feito por " + escapeHtml(t.feitoPor) : ""}</div>
       </div>
       ${possoEditar ? `<button class="botao" style="padding:4px 8px;font-size:11px" data-edit="${i}">✏️</button><button class="botao" style="padding:4px 8px;font-size:11px" data-del="${i}">🗑️</button>` : ""}
     </div>`;

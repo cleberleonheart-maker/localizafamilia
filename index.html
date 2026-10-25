@@ -206,11 +206,12 @@
   </div>
   <button id="btnFamilia" class="desativado">Família</button>
   <button id="btnLugar" title="Cercas de aviso">📌</button>
+  <button id="btnApkTopo" title="Baixar versão Android (APK)" style="padding:6px 9px;font-size:13px">📦</button>
   <button id="btnChat" title="Chat em família">💬</button>
   <button id="btnTarefas" title="Tarefas da família">📋</button>
   <button id="btnInvisivel" title="Modo invisível" class="desativado">🌙</button>
   <button id="btnContatos" title="Contatos de emergência">📞</button>
-  <button id="btnApk" title="Baixar versão Android (APK)" style="padding:6px 9px;font-size:13px;min-width:34px">📦</button>
+  <button id="btnApk" title="Baixar versão Android (APK)" style="display:none">📦</button>
 </div>
 
   <div class="alerta" id="alerta"></div>
@@ -391,13 +392,17 @@ btnFamilia.addEventListener("click", () => {
   alternarPainel(listaFamilia);
 });
 
-document.getElementById("btnApk").addEventListener("click", () => {
+function baixarApk() {
   if (window.AndroidMic && window.AndroidMic.abrirLink) {
     window.AndroidMic.abrirLink("https://github.com/cleberleonheart-maker/localizafamilia/releases/latest/download/app-release.apk");
   } else {
     window.open("https://github.com/cleberleonheart-maker/localizafamilia/releases/latest/download/app-release.apk", "_blank");
   }
-});
+}
+
+document.getElementById("btnApk").addEventListener("click", baixarApk);
+const btnApkTopo = document.getElementById("btnApkTopo");
+if (btnApkTopo) btnApkTopo.addEventListener("click", baixarApk);
 
 const painelLugares = document.getElementById("painelLugares");
 const listaLugares = document.getElementById("listaLugares");

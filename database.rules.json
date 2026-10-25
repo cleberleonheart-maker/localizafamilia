@@ -40,9 +40,10 @@
     },
     "tarefas": {
       ".read": "auth != null",
+      ".indexOn": ["criadoPor", "t"],
       "$tarefa": {
-        ".write": "auth != null",
-        ".validate": "newData.isString() ? newData.val().length <= 2000 : true"
+        ".write": "auth != null && ((!data.exists() && newData.hasChild('criadoPor')) || (data.exists() && data.child('criadoPor').val() === newData.child('criadoPor').val()))",
+        ".validate": "newData.hasChildren(['texto','criadoPor','feito','t']) && newData.child('texto').isString() && newData.child('texto').val().length <= 2000 && newData.child('criadoPor').isString() && newData.child('criadoPor').val().length <= 60 && newData.child('feito').isBoolean() && newData.child('t').isNumber()"
       }
     },
     "sos": {

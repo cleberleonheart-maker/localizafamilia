@@ -1280,11 +1280,7 @@ function escutarChat() {
 }
 
 btnInvisivel.addEventListener("click", () => {
-  if (modoInvisivel) {
-    alternarInvisivel();
-  } else {
-    pedirPinERodar(alternarInvisivel);
-  }
+  pedirPinERodar(alternarInvisivel);
 });
 
 let alternarInvisivel = () => {

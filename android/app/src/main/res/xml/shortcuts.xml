@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="sos"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutShortLabel="@string/atalho_sos_curto"
+        android:shortcutLongLabel="@string/atalho_sos_longo">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.localizafamilia.app"
+            android:targetClass="com.localizafamilia.app.MainActivity">
+            <extra
+                android:name="atalho"
+                android:value="sos" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="tarefas"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutShortLabel="@string/atalho_tarefas_curto"
+        android:shortcutLongLabel="@string/atalho_tarefas_longo">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.localizafamilia.app"
+            android:targetClass="com.localizafamilia.app.MainActivity">
+            <extra
+                android:name="atalho"
+                android:value="tarefas" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

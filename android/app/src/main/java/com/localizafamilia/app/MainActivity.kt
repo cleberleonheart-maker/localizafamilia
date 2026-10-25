@@ -141,7 +141,9 @@ class MainActivity : AppCompatActivity() {
                     return true
                 }
             }
-            webView.loadUrl(APP_URL)
+            val atalho = intent?.getStringExtra("atalho") ?: ""
+            val urlFinal = if (atalho.isNotEmpty()) APP_URL + "?" + atalho + "=1" else APP_URL
+            webView.loadUrl(urlFinal)
             registrar("pagina_pedida")
 
             pedirPermissoes()
@@ -150,6 +152,17 @@ class MainActivity : AppCompatActivity() {
             registrar("fim_create")
         } catch (t: Throwable) {
             registrar("ERRO_create:" + trace(t))
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        try {
+            val atalho = intent?.getStringExtra("atalho") ?: ""
+            if (atalho.isNotEmpty()) {
+                webView.loadUrl(APP_URL + "?" + atalho + "=1")
+            }
+        } catch (_: Throwable) {
         }
     }
 

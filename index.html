@@ -90,6 +90,7 @@
   .item-familia .nome { flex: 1; font-weight: 600; font-size: 14px; }
   .item-familia .distancia { font-size: 12px; color: var(--verde); }
   .item-familia .tempo { font-size: 11px; opacity: .6; }
+  .item-familia .endereco { font-size: 11px; opacity: .6; font-weight: 400; margin-top: 2px; }
   .marcador-eu .pin { background: var(--azul-claro); }
   .pin {
     width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
@@ -417,6 +418,78 @@ function distanciaEmKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+const geocodeCache = (() => {
+  try { return JSON.parse(localStorage.getItem("geocodeCache") || "{}"); } catch (_) { return {}; }
+})();
+const geocodeFila = [];
+let geocodeRodando = false;
+
+function chaveGeo(lat, lng) {
+  return lat.toFixed(3) + "," + lng.toFixed(3);
+}
+
+function salvarGeocodeCache() {
+  try {
+    const chaves = Object.keys(geocodeCache);
+    if (chaves.length > 300) chaves.slice(0, chaves.length - 300).forEach((k) => delete geocodeCache[k]);
+    localStorage.setItem("geocodeCache", JSON.stringify(geocodeCache));
+  } catch (_) {}
+}
+
+function formatarEndereco(dados) {
+  const a = dados.address || {};
+  const rua = a.road || a.pedestrian || a.footway || a.path || a.avenue;
+  const numero = a.house_number;
+  const bairro = a.suburb || a.neighbourhood || a.quarter || a.city_district;
+  const cidade = a.city || a.town || a.village || a.municipality;
+  const partes = [];
+  if (rua) partes.push(rua + (numero ? ", " + numero : ""));
+  if (bairro) partes.push(bairro);
+  if (cidade) partes.push(cidade);
+  if (partes.length === 0) {
+    return (dados.display_name || "").split(",").slice(0, 2).join(",").trim();
+  }
+  return partes.join(" - ");
+}
+
+function processarFilaGeocode() {
+  if (geocodeRodando || geocodeFila.length === 0) return;
+  geocodeRodando = true;
+  const item = geocodeFila.shift();
+  const url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=pt-BR&lat=" + item.lat + "&lon=" + item.lng;
+  fetch(url, { headers: { "Accept": "application/json" } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((dados) => {
+      const texto = dados ? formatarEndereco(dados) : "";
+      item.resolve(texto || "");
+    })
+    .catch(() => item.resolve(""))
+    .finally(() => {
+      setTimeout(() => {
+        geocodeRodando = false;
+        processarFilaGeocode();
+      }, 1100);
+    });
+}
+
+function enderecoDe(lat, lng) {
+  if (typeof lat !== "number" || typeof lng !== "number") return Promise.resolve("");
+  const chave = chaveGeo(lat, lng);
+  if (geocodeCache[chave] !== undefined) return Promise.resolve(geocodeCache[chave]);
+  return new Promise((resolve) => {
+    geocodeFila.push({
+      lat: lat.toFixed(6),
+      lng: lng.toFixed(6),
+      resolve: (texto) => {
+        geocodeCache[chave] = texto;
+        salvarGeocodeCache();
+        resolve(texto);
+      }
+    });
+    processarFilaGeocode();
+  });
+}
+
 function estaConfigurado() {
   return FIREBASE_CONFIGURADO && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("SUA-");
 }
@@ -441,6 +514,7 @@ function abrirFirebase() {
 btnFamilia.addEventListener("click", () => {
   if (!estaConfigurado()) return;
   alternarPainel(listaFamilia);
+  if (listaFamilia.classList.contains("visivel")) renderizarFamilia();
 });
 
 function baixarApk() {
@@ -642,7 +716,11 @@ inputNome.addEventListener("keydown", (e) => {
 
 function atualizarInterface() {
   if (minhaPosicao) {
-    info.innerHTML = `Localização: ${minhaPosicao.lat.toFixed(6)}, ${minhaPosicao.lng.toFixed(6)}<br>Precisão: ±${Math.round(minhaPosicao.acuracia)} m`;
+    info.innerHTML = `Localização: ${minhaPosicao.lat.toFixed(6)}, ${minhaPosicao.lng.toFixed(6)}<br>Precisão: ±${Math.round(minhaPosicao.acuracia)} m<br><span id="infoEndereco"></span>`;
+    const alvo = document.getElementById("infoEndereco");
+    enderecoDe(minhaPosicao.lat, minhaPosicao.lng).then((txt) => {
+      if (alvo && txt) alvo.textContent = "📍 " + txt;
+    });
   }
   if (estaConfigurado() && !localStorage.getItem("nomeFamiliar")) {
     campoNome.style.display = "block";
@@ -807,7 +885,7 @@ function renderizarFamilia() {
   if (minhaPosicao) {
     html.push(`
       <div class="item-familia">
-        <div class="nome">${meuNome || "Eu"} (eu)${meuStatus ? " " + iconeStatus(meuStatus) : ""}${ultimaBateria !== null ? " · 🔋" + ultimaBateria + "%" : ""}${modoInvisivel ? " · 🌙 oculto" : ""}</div>
+        <div class="nome">${meuNome || "Eu"} (eu)${meuStatus ? " " + iconeStatus(meuStatus) : ""}${ultimaBateria !== null ? " · 🔋" + ultimaBateria + "%" : ""}${modoInvisivel ? " · 🌙 oculto" : ""}<div class="endereco" data-lat="${minhaPosicao.lat}" data-lng="${minhaPosicao.lng}"></div></div>
         <div class="tempo">agora</div>
         <button class="rota" data-nome="${meuNome || "Eu"}">Rota</button>
       </div>`);
@@ -822,7 +900,7 @@ function renderizarFamilia() {
     const offline = m.atualizado && agoraMs - m.atualizado > 15*60000;
     html.push(`
       <div class="item-familia">
-        <div class="nome">${m.nome}${m.status ? " " + iconeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}${offline ? " · ⚠️ offline" : ""}</div>
+        <div class="nome">${m.nome}${m.status ? " " + iconeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}${offline ? " · ⚠️ offline" : ""}<div class="endereco" data-lat="${m.lat}" data-lng="${m.lng}"></div></div>
         <div class="distancia">${minhaPosicao ? dist.toFixed(1) + " km" : "—"}${visto ? " · " + visto : ""}</div>
         <button class="rota" data-nome="${m.nome}">Rota</button>
       </div>`);
@@ -831,6 +909,15 @@ function renderizarFamilia() {
     html.push('<div class="vazio">Nenhum membro online ainda.</div>');
   }
   listaFamilia.innerHTML = html.join("");
+  if (listaFamilia.classList.contains("visivel")) {
+    listaFamilia.querySelectorAll(".endereco").forEach((el) => {
+      const lat = parseFloat(el.dataset.lat);
+      const lng = parseFloat(el.dataset.lng);
+      enderecoDe(lat, lng).then((txt) => {
+        if (txt && el.isConnected) el.textContent = "📍 " + txt;
+      });
+    });
+  }
   listaFamilia.querySelectorAll(".rota").forEach((b) => {
     b.addEventListener("click", () => verRota(b.dataset.nome));
   });

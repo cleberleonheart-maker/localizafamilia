@@ -290,7 +290,7 @@
 </div>
 
 <div class="painel rodape">
-  <button id="btnCentralizar">Minha posição</button>
+  <button id="btnCentralizar">🎯 Minha posição</button>
   <div class="info" id="info">Localização: —<br>Precisão: —</div>
 </div>
 
@@ -921,6 +921,15 @@ function exportarGPX(pontos, nome) {
 window.exportarCSV = exportarCSV;
 window.exportarGPX = exportarGPX;
 
+function limparTrilha() {
+  if (camadaTrilha) {
+    try { mapa.removeLayer(camadaTrilha); } catch (e) {}
+    camadaTrilha = null;
+  }
+  ultimaTrilha = { pontos: [], nome: "" };
+  notificar("Trilha removida do mapa");
+}
+
 function fecharTrilha() {
   if (camadaTrilha) {
     try { mapa.removeLayer(camadaTrilha); } catch (e) {}
@@ -932,6 +941,7 @@ function fecharTrilha() {
 }
 
 window.fecharTrilha = fecharTrilha;
+window.limparTrilha = limparTrilha;
 
 function desenharTrilha(pontos, nome) {
   if (camadaTrilha) {
@@ -1650,7 +1660,28 @@ function atualizarBateria() {
 }
 
 btnCentralizar.addEventListener("click", () => {
-  if (minhaPosicao) mapa.setView([minhaPosicao.lat, minhaPosicao.lng], 15);
+  if (!mapa) return;
+  const pontos = [];
+  if (minhaPosicao) pontos.push([minhaPosicao.lat, minhaPosicao.lng]);
+  if (typeof membros !== "undefined") {
+    membros.forEach((m) => {
+      if (m && typeof m.lat === "number" && typeof m.lng === "number") pontos.push([m.lat, m.lng]);
+    });
+  }
+  if (pontos.length === 0 && minhaPosicao) {
+    mapa.setView([minhaPosicao.lat, minhaPosicao.lng], 16);
+    return;
+  }
+  if (pontos.length === 1) {
+    mapa.setView(pontos[0], 16);
+    return;
+  }
+  try {
+    const bounds = L.latLngBounds(pontos);
+    mapa.fitBounds(bounds.pad(0.25));
+  } catch (e) {
+    if (minhaPosicao) mapa.setView([minhaPosicao.lat, minhaPosicao.lng], 15);
+  }
 });
 
 function iniciarApp() {
@@ -1879,8 +1910,8 @@ if ("serviceWorker" in navigator) {
   const painelExportarRota = document.createElement('div');
   painelExportarRota.id = 'painelExportarRota';
   painelExportarRota.className = 'painel-exportar';
-  painelExportarRota.style.cssText = 'display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9998;background:rgba(15,23,42,.95);color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:92vw;width:420px;border:1px solid rgba(255,255,255,.12)';
-  painelExportarRota.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-size:12px;font-weight:600">Exportar rota do dia</div><div style="font-size:11px;opacity:.7" id="expNome">-</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarGPX(ultimaTrilha.pontos, ultimaTrilha.nome)">GPX</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarCSV(ultimaTrilha.pontos, ultimaTrilha.nome)">CSV</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="fecharTrilha()">Fechar</button></div></div>';
+  painelExportarRota.style.cssText = 'display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9998;background:rgba(15,23,42,.95);color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:92vw;width:440px;border:1px solid rgba(255,255,255,.12)';
+  painelExportarRota.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div style="font-size:12px;font-weight:600">Exportar rota do dia</div><div style="font-size:11px;opacity:.7" id="expNome">-</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarGPX(ultimaTrilha.pontos, ultimaTrilha.nome)">GPX</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarCSV(ultimaTrilha.pontos, ultimaTrilha.nome)">CSV</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="limparTrilha()">Limpar</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="fecharTrilha()">Fechar</button></div></div>';
   document.body.appendChild(painelExportarRota);
 }
 </script>

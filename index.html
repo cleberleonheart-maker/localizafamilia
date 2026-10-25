@@ -889,7 +889,7 @@ function renderizarFamilia() {
     </div>`);
   if (minhaPosicao) {
     html.push(`
-      <div class="item-familia">
+      <div class="item-familia" data-lat="${minhaPosicao.lat}" data-lng="${minhaPosicao.lng}" style="cursor:pointer">
         <div class="nome">${escapeHtml(meuNome || "Eu")} (eu)${meuStatus ? " " + iconeStatus(meuStatus) : ""}${ultimaBateria !== null ? " · 🔋" + ultimaBateria + "%" : ""}${modoInvisivel ? " · 🌙 oculto" : ""}<div class="endereco" data-lat="${minhaPosicao.lat}" data-lng="${minhaPosicao.lng}"></div></div>
         <div class="tempo">agora</div>
         <button class="rota" data-nome="${escapeHtml(meuNome || "Eu")}">Rota</button>
@@ -904,7 +904,7 @@ function renderizarFamilia() {
     const visto = tempoRelativo(m.atualizado);
     const offline = m.atualizado && agoraMs - m.atualizado > 15*60000;
     html.push(`
-      <div class="item-familia">
+      <div class="item-familia" data-lat="${m.lat}" data-lng="${m.lng}" style="cursor:pointer">
         <div class="nome">${escapeHtml(m.nome)}${m.status ? " " + iconeStatus(m.status) : ""}${m.bateria !== undefined ? " · 🔋" + m.bateria + "%" : ""}${offline ? " · ⚠️ offline" : ""}<div class="endereco" data-lat="${m.lat}" data-lng="${m.lng}"></div></div>
         <div class="distancia">${minhaPosicao ? dist.toFixed(1) + " km" : "—"}${visto ? " · " + visto : ""}</div>
         <button class="rota" data-nome="${escapeHtml(m.nome)}">Rota</button>
@@ -925,6 +925,18 @@ function renderizarFamilia() {
   }
   listaFamilia.querySelectorAll(".rota").forEach((b) => {
     b.addEventListener("click", () => verRota(b.dataset.nome));
+  });
+  listaFamilia.querySelectorAll(".item-familia[data-lat]").forEach((item) => {
+    item.addEventListener("click", (ev) => {
+      if (ev.target.closest("button")) return;
+      const lat = parseFloat(item.dataset.lat);
+      const lng = parseFloat(item.dataset.lng);
+      if (typeof lat === "number" && typeof lng === "number" && mapa) {
+        mapa.setView([lat, lng], Math.max(mapa.getZoom(), 16));
+        listaFamilia.classList.remove("visivel");
+        atualizarBotoesFlutuantes();
+      }
+    });
   });
   listaFamilia.querySelectorAll("[data-status]").forEach((b) => {
     b.addEventListener("click", () => definirStatus(b.dataset.status));

@@ -69,6 +69,14 @@
     padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
   }
   button.desativado { opacity: .4; }
+  .topo button { position: relative; }
+  .badge {
+    position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px;
+    padding: 0 4px; border-radius: 999px; background: var(--vermelho); color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+    display: none; box-shadow: 0 1px 4px rgba(0,0,0,.4);
+  }
+  .badge.visivel { display: block; }
   .lista {
     position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%);
     bottom: 86px; width: min(94%, 420px); max-height: 40vh; overflow-y: auto;
@@ -233,8 +241,8 @@
   <button id="btnFamilia" class="desativado">Família</button>
   <button id="btnLugar" title="Cercas de aviso">📌</button>
   <button id="btnApkTopo" title="Baixar versão Android (APK)" style="padding:6px 9px;font-size:13px">📦</button>
-  <button id="btnChat" title="Chat em família">💬</button>
-  <button id="btnTarefas" title="Tarefas da família">📋</button>
+  <button id="btnChat" title="Chat em família">💬<span class="badge" id="badgeChat"></span></button>
+  <button id="btnTarefas" title="Tarefas da família">📋<span class="badge" id="badgeTarefas"></span></button>
   <button id="btnContatos" title="Contatos de emergência">📞</button>
   <button id="btnInvisivel" title="Modo invisível" class="desativado">🌙</button>
   <button id="btnApk" title="Baixar versão Android (APK)" style="display:none">📦</button>
@@ -1297,6 +1305,28 @@ const btnInvisivel = document.getElementById("btnInvisivel");
 
 let chatMensagens = [];
 let ultimaMsgVista = "";
+const badgeChat = document.getElementById("badgeChat");
+
+function chatVistoT() {
+  const v = parseInt(localStorage.getItem("chatVistoT") || "0", 10);
+  return isNaN(v) ? 0 : v;
+}
+
+function atualizarBadgeChat() {
+  if (!badgeChat) return;
+  const meuNome = localStorage.getItem("nomeFamiliar") || "";
+  const visto = chatVistoT();
+  const naoLidas = chatMensagens.filter((m) => m && m.nome !== meuNome && (m.t || 0) > visto).length;
+  badgeChat.textContent = naoLidas > 9 ? "9+" : String(naoLidas);
+  badgeChat.classList.toggle("visivel", naoLidas > 0);
+}
+
+function marcarChatVisto() {
+  const ultima = chatMensagens.length ? (chatMensagens[chatMensagens.length - 1].t || 0) : 0;
+  const marco = Math.max(Date.now(), ultima);
+  try { localStorage.setItem("chatVistoT", String(marco)); } catch (_) {}
+  atualizarBadgeChat();
+}
 
 chatEnviar.addEventListener("click", enviarChat);
 chatTexto.addEventListener("keydown", (e) => {
@@ -1306,6 +1336,7 @@ chatTexto.addEventListener("keydown", (e) => {
 btnChat.addEventListener("click", () => {
   alternarPainel(painelChat);
   renderizarChat();
+  if (painelChat.classList.contains("visivel")) marcarChatVisto();
 });
 
 function enviarChat() {
@@ -1331,11 +1362,16 @@ function escutarChat() {
     const meuNome = localStorage.getItem("nomeFamiliar") || "";
     chatMsgs.innerHTML = chatMensagens.map((m) => `
       <div class="msg ${m.nome === meuNome ? "minha" : ""}">
-        <span class="quem">${m.nome || "?"}</span>
+        <span class="quem">${escapeHtml(m.nome || "?")}</span>
         <span class="quando">${m.t ? new Date(m.t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}</span>
-        <div class="texto">${m.texto || ""}</div>
+        <div class="texto">${escapeHtml(m.texto || "")}</div>
       </div>`).join("");
     chatMsgs.scrollTop = chatMsgs.scrollHeight;
+    if (painelChat.classList.contains("visivel")) {
+      marcarChatVisto();
+    } else {
+      atualizarBadgeChat();
+    }
     const maisRecente = chatMensagens[chatMensagens.length - 1];
     if (maisRecente && maisRecente.nome !== meuNome && maisRecente.texto !== ultimaMsgVista) {
       ultimaMsgVista = maisRecente.texto;
@@ -1412,6 +1448,14 @@ const tarefaTexto = document.getElementById("tarefaTexto");
 const tarefaEnviar = document.getElementById("tarefaEnviar");
 
 let tarefas = [];
+const badgeTarefas = document.getElementById("badgeTarefas");
+
+function atualizarBadgeTarefas() {
+  if (!badgeTarefas) return;
+  const pendentes = tarefas.filter((t) => t && !t.feito).length;
+  badgeTarefas.textContent = pendentes > 9 ? "9+" : String(pendentes);
+  badgeTarefas.classList.toggle("visivel", pendentes > 0);
+}
 
 btnTarefas.addEventListener("click", () => {
   alternarPainel(painelTarefas);
@@ -1509,6 +1553,7 @@ function escutarTarefas() {
       .filter(Boolean)
       .sort((a, b) => (a.t || 0) - (b.t || 0));
     renderizarTarefas();
+    atualizarBadgeTarefas();
   });
 }
 

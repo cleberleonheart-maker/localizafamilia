@@ -1,4 +1,4 @@
-const CACHE_NAME = 'localizafamilia-v1.1.6';
+const CACHE_NAME = 'localizafamilia-v1.1.7';
 const ASSETS = [
   './',
   './index.html',

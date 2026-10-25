@@ -1885,15 +1885,18 @@ if ("serviceWorker" in navigator) {
         const newWorker = reg.installing;
         if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          if (newWorker.state === 'installed') {
             const aviso = document.createElement('div');
-            aviso.textContent = '✨ Nova versão disponível';
-            aviso.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:10000;background:#22c55e;color:#052e16;padding:8px 14px;border-radius:999px;font-size:12px;box-shadow:0 10px 40px rgba(0,0,0,.4);cursor:pointer';
+            aviso.textContent = '✨ Nova versão disponível • Clique para atualizar';
+            aviso.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:10000;background:#22c55e;color:#052e16;padding:10px 16px;border-radius:999px;font-size:12px;box-shadow:0 10px 40px rgba(0,0,0,.6);cursor:pointer;white-space:nowrap';
             aviso.onclick = () => {
-              newWorker.postMessage({ type: 'SKIP_WAITING' });
+              try { newWorker.postMessage({ type: 'SKIP_WAITING' }); } catch(e) {}
               window.location.reload();
             };
             document.body.appendChild(aviso);
+            setTimeout(() => {
+              if (aviso.parentNode) aviso.parentNode.removeChild(aviso);
+            }, 15000);
           }
         });
       });

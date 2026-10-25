@@ -1000,20 +1000,50 @@ function ligarHistoricoDe(chave) {
       .filter((p) => p && typeof p.lat === "number" && typeof p.lng === "number")
       .sort((a, b) => a.t - b.t);
     trilhaMembros.set(chave, pontos);
+    if (nomeRotaAtual && nomeRotaAtual.replace(/[^a-zA-Z0-9-_]/g, "_") === chave) {
+      desenharRotaDoDia(nomeRotaAtual, diaRotaAtual);
+    }
   });
 }
 
-function verRota(nome) {
-  const ehEu = nome === (localStorage.getItem("nomeFamiliar") || "Eu");
-  if (ehEu) {
-    desenharTrilha(historicoLocal.filter((p) => p.t >= meiaNoiteHoje()), nome);
-    return;
-  }
-  const chave = nome.replace(/[^a-zA-Z0-9-_]/g, "_");
-  ligarHistoricoDe(chave);
-  const pontos = trilhaMembros.get(chave);
-  desenharTrilha((pontos || []).filter((p) => p.t >= meiaNoiteHoje()), nome);
+let nomeRotaAtual = "";
+let diaRotaAtual = null;
+
+function dataISOLocal(ms) {
+  const d = new Date(ms);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
+
+function desenharRotaDoDia(nome, inicioMs) {
+  if (!inicioMs) inicioMs = meiaNoiteHoje();
+  nomeRotaAtual = nome;
+  diaRotaAtual = inicioMs;
+  const fim = inicioMs + 24 * 3600 * 1000;
+  const ehEu = nome === (localStorage.getItem("nomeFamiliar") || "Eu");
+  let pontos;
+  if (ehEu) {
+    pontos = historicoLocal.filter((p) => p.t >= inicioMs && p.t < fim);
+  } else {
+    const chave = nome.replace(/[^a-zA-Z0-9-_]/g, "_");
+    ligarHistoricoDe(chave);
+    pontos = (trilhaMembros.get(chave) || []).filter((p) => p.t >= inicioMs && p.t < fim);
+  }
+  desenharTrilha(pontos, nome, inicioMs);
+}
+
+function verRota(nome) {
+  desenharRotaDoDia(nome, meiaNoiteHoje());
+}
+
+window.mudarDiaRota = function(valor) {
+  if (!valor || !nomeRotaAtual) return;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor);
+  if (!m) return;
+  const ms = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)).getTime();
+  desenharRotaDoDia(nomeRotaAtual, ms);
+};
 
 let camadaTrilha = null;
 let ultimaTrilha = { pontos: [], nome: "" };
@@ -1109,13 +1139,23 @@ function fecharTrilha() {
 window.fecharTrilha = fecharTrilha;
 window.limparTrilha = limparTrilha;
 
-function desenharTrilha(pontos, nome) {
+function desenharTrilha(pontos, nome, inicioMs) {
   if (camadaTrilha) {
     try { mapa.removeLayer(camadaTrilha); } catch (e) {}
     camadaTrilha = null;
   }
+  const inicio = typeof inicioMs === "number" ? inicioMs : meiaNoiteHoje();
+  const dataTxt = dataISOLocal(inicio).split("-").reverse().join("/");
   if (!pontos || !pontos.length) {
-    notificar(`Sem pontos registrados hoje para ${nome} ainda.`);
+    notificar(`Sem pontos registrados em ${dataTxt} para ${nome}.`);
+    const painelVazio = document.getElementById("painelExportarRota");
+    if (painelVazio) {
+      const campoData = document.getElementById("rotaData");
+      if (campoData) campoData.value = dataISOLocal(inicio);
+      painelVazio.style.display = "flex";
+      const expNomeVazio = document.getElementById("expNome");
+      if (expNomeVazio) expNomeVazio.textContent = nome + " · " + dataTxt + " · 0 pts";
+    }
     return;
   }
   ultimaTrilha = { pontos: pontos.slice(), nome: nome };
@@ -1129,11 +1169,13 @@ function desenharTrilha(pontos, nome) {
   try {
     mapa.fitBounds(L.latLngBounds(pontos.map((p) => [p.lat, p.lng])).pad(0.2));
   } catch (e) {}
-  notificar(`Rota de ${nome}: ${pontos.length} pontos hoje`);
+  notificar(`Rota de ${nome}: ${pontos.length} pontos em ${dataTxt}`);
   const painel = document.getElementById("painelExportarRota");
   if (painel) {
+    const campoData = document.getElementById("rotaData");
+    if (campoData) campoData.value = dataISOLocal(inicio);
     const expNome = document.getElementById("expNome");
-    if (expNome) expNome.textContent = nome + " · " + pontos.length + " pts";
+    if (expNome) expNome.textContent = nome + " · " + dataTxt + " · " + pontos.length + " pts";
     painel.style.display = "flex";
   }
 }
@@ -2165,7 +2207,7 @@ if ("serviceWorker" in navigator) {
   painelExportarRota.id = 'painelExportarRota';
   painelExportarRota.className = 'painel-exportar';
   painelExportarRota.style.cssText = 'display:none;position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:9998;background:rgba(15,23,42,.95);color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:92vw;width:440px;border:1px solid rgba(255,255,255,.12)';
-  painelExportarRota.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div style="font-size:12px;font-weight:600">Exportar rota do dia</div><div style="font-size:11px;opacity:.7" id="expNome">-</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarGPX(ultimaTrilha.pontos, ultimaTrilha.nome)">GPX</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarCSV(ultimaTrilha.pontos, ultimaTrilha.nome)">CSV</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="limparTrilha()">Limpar</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="fecharTrilha()">Fechar</button></div></div>';
+  painelExportarRota.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><div style="font-size:12px;font-weight:600">Rota do dia</div><div style="font-size:11px;opacity:.7" id="expNome">-</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center"><input type="date" id="rotaData" onchange="mudarDiaRota(this.value)" style="background:#0F1526;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:4px 6px;font-size:12px"><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarGPX(ultimaTrilha.pontos, ultimaTrilha.nome)">GPX</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="exportarCSV(ultimaTrilha.pontos, ultimaTrilha.nome)">CSV</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="limparTrilha()">Limpar</button><button class="botao" style="padding:6px 10px;font-size:12px" onclick="fecharTrilha()">Fechar</button></div></div>';
   document.body.appendChild(painelExportarRota);
 }
 </script>

@@ -1936,6 +1936,22 @@ if ("serviceWorker" in navigator) {
     });
   }
 
+  try {
+    const qs = window.location.search || "";
+    if (qs.includes("sos=1")) {
+      setTimeout(() => {
+        const btn = document.getElementById("btnSos");
+        if (btn) btn.click();
+      }, 2500);
+    }
+    if (qs.includes("tarefas=1")) {
+      setTimeout(() => {
+        const btn = document.getElementById("btnTarefas");
+        if (btn) { btn.click(); if (typeof renderizarTarefas === "function") renderizarTarefas(); }
+      }, 2500);
+    }
+  } catch (e) {}
+
   const painelExportarRota = document.createElement('div');
   painelExportarRota.id = 'painelExportarRota';
   painelExportarRota.className = 'painel-exportar';

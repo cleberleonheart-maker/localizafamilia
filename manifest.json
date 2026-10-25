@@ -14,5 +14,33 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "SOS",
+      "short_name": "SOS",
+      "description": "Enviar pedido de ajuda",
+      "url": "./index.html?sos=1",
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Tarefas",
+      "short_name": "Tarefas",
+      "description": "Ver tarefas da família",
+      "url": "./index.html?tarefas=1",
+      "icons": [
+        {
+          "src": "icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
   ]
 }
